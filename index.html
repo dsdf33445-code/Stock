@@ -50,9 +50,9 @@
         [v-cloak] { display: none; }
         .nav-btn { @apply w-full text-left px-6 py-4 rounded-xl text-lg font-bold transition-all flex items-center mb-2 whitespace-nowrap; }
         
-        /* 表格樣式優化 */
-        th { @apply py-3 px-4 font-semibold text-gray-400 uppercase tracking-wider text-center; } /* 強制標題置中 */
-        td { @apply py-3 px-4 text-center; } /* 數據預設置中，數字可另外微調 */
+        /* 表格樣式優化: 標題強制置中，數據預設置中 */
+        th { @apply py-3 px-4 font-semibold text-gray-400 uppercase tracking-wider text-center; } 
+        td { @apply py-3 px-4 text-center; } 
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 h-screen overflow-hidden flex flex-col font-sans">
@@ -168,8 +168,8 @@
                                         <td class="text-gray-300">{{ stock.name }}</td>
                                         <td class="number-font" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
                                         <td class="number-font text-gray-500">{{ formatPrice(stock.cost) }}</td>
-                                        <td class="number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td>
-                                        <td class="number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
+                                        <td class="number-font text-right" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td>
+                                        <td class="number-font text-right" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
                                     </tr>
                                     <tr v-if="sortedHoldings.length === 0"><td colspan="6" class="py-4 text-center text-gray-500">無庫存資料</td></tr>
                                 </tbody>
@@ -193,8 +193,8 @@
                                         <td class="text-gray-300">{{ stock.name }}</td>
                                         <td class="number-font" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
                                         <td class="number-font text-gray-500">{{ formatPrice(stock.cost) }}</td>
-                                        <td class="number-font" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
-                                        <td class="number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
+                                        <td class="number-font text-right" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
+                                        <td class="number-font text-right" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
                                     </tr>
                                     <tr v-if="usHoldings.length === 0"><td colspan="6" class="py-4 text-center text-gray-500">無庫存資料</td></tr>
                                 </tbody>
@@ -232,8 +232,8 @@
                                         <td class="number-font text-gray-300">{{ formatPrice(stock.cost) }}</td>
                                         <td class="number-font font-bold" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
                                         <td class="number-font">{{ formatNumber(stock.volume) }}</td>
-                                        <td class="number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td>
-                                        <td class="number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
+                                        <td class="number-font font-bold text-right" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td>
+                                        <td class="number-font font-bold text-right" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
                                         <td @click.stop>
                                             <button @click="openSellModal(stock)" class="bg-red-900/30 text-red-400 px-2 py-1 rounded text-xs mr-2 border border-red-900 hover:bg-red-900/50">賣出</button>
                                             <button @click="editItem('holdings', stock)" class="text-gray-500 hover:text-blue-400 mr-2 text-lg">✎</button>
@@ -273,8 +273,8 @@
                                         <td class="number-font text-gray-300">{{ formatPrice(stock.cost) }}</td>
                                         <td class="number-font font-bold" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
                                         <td class="number-font">{{ formatNumber(stock.volume) }}</td>
-                                        <td class="number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
-                                        <td class="number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
+                                        <td class="number-font font-bold text-right" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
+                                        <td class="number-font font-bold text-right" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
                                         <td @click.stop>
                                             <button @click="openSellModal(stock)" class="bg-red-900/30 text-red-400 px-2 py-1 rounded text-xs mr-2 border border-red-900">賣出</button>
                                             <button @click="editItem('us_stocks', stock)" class="text-gray-500 hover:text-blue-400 mr-2 text-lg">✎</button>
@@ -320,7 +320,7 @@
                                         <td class="text-white font-bold">{{ r.name }} <span class="text-gray-500 font-normal">({{ r.code }})</span></td>
                                         <td class="number-font">{{ historyFilter === 'us' ? formatPrice(r.price) : formatNumber(r.price) }}</td>
                                         <td class="number-font">{{ formatNumber(r.volume) }}</td>
-                                        <td class="number-font font-bold" :class="getColorClass(r.netPL)">{{ historyFilter === 'us' ? '$ ' : '' }}{{ historyFilter === 'us' ? formatPrice(r.netPL) : formatCurrency(r.netPL) }}</td>
+                                        <td class="number-font font-bold text-right" :class="getColorClass(r.netPL)">{{ historyFilter === 'us' ? '$ ' : '' }}{{ historyFilter === 'us' ? formatPrice(r.netPL) : formatCurrency(r.netPL) }}</td>
                                         <td><button @click="confirmDelete('history', r.id)" class="text-gray-500 hover:text-red-400">✕</button></td>
                                     </tr>
                                 </tbody>
@@ -449,8 +449,11 @@
                     const colName = modalType.value === 'us_stocks' ? 'us_holdings' : modalType.value;
                     let data = { ...formData.value };
 
-                    // ★ 防呆：負數檢查 ★
-                    if (data.volume < 0 || data.price < 0 || data.cost < 0 || data.weight < 0) { alert('數值不能為負數！'); return; }
+                    // ★ 防呆：負數檢查 (修正版：直接阻擋) ★
+                    if (data.volume < 0 || data.price < 0 || data.cost < 0 || data.weight < 0) { 
+                        alert('數值不能為負數！'); 
+                        return; 
+                    }
 
                     if (modalMode.value === 'sell') {
                         const isTw = modalType.value === 'holdings';
