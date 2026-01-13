@@ -6,25 +6,35 @@
     <title>ALPHA TRADER Pro - Cloud Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } 
         from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // ★★★ 請在此填入您的 Firebase 設定 (從您原本的檔案複製過來) ★★★
-        const firebaseConfig = {
-  	apiKey: "AIzaSyCV5sUAZz5Lo226gv2ryuJeCLlnRC5KQrY",
-  	authDomain: "stock-12290.firebaseapp.com",
-  	projectId: "stock-12290",
-  	storageBucket: "stock-12290.firebasestorage.app",
-  	messagingSenderId: "586421910135",
-  	appId: "1:586421910135:web:df8c590c25e733e1392472",
-  	measurementId: "G-XR417P8PEN"
-	};
+        // 初始化函式：先抓設定，再啟動
+        async function initApp() {
+            try {
+                // 1. 從後端抓取環境變數
+                const res = await fetch('/api/config');
+                if (!res.ok) throw new Error('無法讀取設定，請檢查 Vercel 環境變數');
+                const firebaseConfig = await res.json();
 
-        const app = initializeApp(firebaseConfig);
-        window.db = getFirestore(app);
-        window.firebaseOps = { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp };
+                // 2. 初始化 Firebase
+                const app = initializeApp(firebaseConfig);
+                window.db = getFirestore(app);
+                window.firebaseOps = { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp };
+                
+                // 3. 通知 Vue 可以開始運作了 (透過全域事件或變數)
+                window.dispatchEvent(new Event('firebase-ready'));
+                console.log("Firebase initialized successfully");
+            } catch (e) {
+                console.error("初始化失敗:", e);
+                alert("系統錯誤：無法讀取 Firebase 設定。\n請確認您已在 Vercel 設定 Environment Variables。");
+            }
+        }
+        
+        initApp();
     </script>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -36,9 +46,8 @@
                     fontFamily: { sans: ['Inter'], mono: ['JetBrains Mono'] },
                     colors: {
                         gray: { 850: '#1f2937', 900: '#111827', 950: '#0b0f19' },
-                        // 強制定義紅漲綠跌 (台股標準)
-                        up: '#ef4444',   // 紅色 (獲利/上漲)
-                        down: '#22c55e', // 綠色 (虧損/下跌)
+                        up: '#ef4444',   
+                        down: '#22c55e', 
                     }
                 }
             }
@@ -97,7 +106,6 @@
             </header>
 
             <div class="flex-1 overflow-auto p-6 relative">
-                
                 <div v-if="currentTab === 'dashboard' || currentTab === 'holdings'" class="mb-10">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-white flex items-center gap-3">
@@ -111,7 +119,6 @@
                             + 新增持股
                         </button>
                     </div>
-
                     <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl">
                         <table class="w-full text-sm text-left">
                             <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
@@ -123,7 +130,8 @@
                                     <th class="px-4 py-3 text-right">股數</th>
                                     <th class="px-4 py-3 text-right">損益</th>
                                     <th class="px-4 py-3 text-right">%</th>
-                                    <th class="px-4 py-3 text-right">操作</th> </tr>
+                                    <th class="px-4 py-3 text-right">操作</th>
+                                </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-800">
                                 <tr v-for="stock in holdings" :key="stock.id" class="hover:bg-gray-800/50 group">
@@ -136,9 +144,7 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-3 text-right number-font text-gray-300">{{ formatNumber(stock.cost) }}</td>
-                                    <td class="px-4 py-3 text-right number-font font-bold" :class="getPriceColor(stock)">
-                                        {{ formatNumber(stock.currentPrice) }}
-                                    </td>
+                                    <td class="px-4 py-3 text-right number-font font-bold" :class="getPriceColor(stock)">{{ formatNumber(stock.currentPrice) }}</td>
                                     <td class="px-4 py-3 text-right number-font text-gray-300">{{ formatNumber(stock.volume) }}</td>
                                     <td class="px-4 py-3 text-right number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">
                                         {{ formatCurrency(calculateUnrealizedPL(stock)) }}
@@ -201,13 +207,11 @@
                 <div v-if="showModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
                     <div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-96 shadow-2xl">
                         <h3 class="text-lg font-bold mb-4 text-white">{{ modalMode === 'add' ? '新增' : '編輯' }} {{ modalType === 'holdings' ? '庫存' : '紀錄' }}</h3>
-                        
                         <div class="space-y-3">
                             <div v-if="modalType === 'history'">
                                 <label class="text-xs text-gray-400">日期</label>
                                 <input v-model="formData.date" type="date" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-blue-500">
                             </div>
-                            
                             <div>
                                 <label class="text-xs text-gray-400">股票代號</label>
                                 <div class="flex gap-2">
@@ -218,19 +222,16 @@
                                     </button>
                                 </div>
                             </div>
-                            
                             <div>
                                 <label class="text-xs text-gray-400">股票名稱</label>
-                                <input v-model="formData.name" type="text" placeholder="自動帶入或手動輸入" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none">
+                                <input v-model="formData.name" type="text" placeholder="自動帶入" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none">
                             </div>
-
                             <div>
                                 <label class="text-xs text-gray-400">分類</label>
                                 <select v-model="formData.type" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none">
                                     <option v-for="t in types" :value="t">{{ t }}</option>
                                 </select>
                             </div>
-
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="text-xs text-gray-400">{{ modalType === 'holdings' ? '成本均價' : '成交價' }}</label>
@@ -241,7 +242,6 @@
                                     <input v-model.number="formData.volume" type="number" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-blue-500">
                                 </div>
                             </div>
-
                             <div v-if="modalType === 'history'" class="pt-2 border-t border-gray-800 space-y-2">
                                 <div class="grid grid-cols-2 gap-2">
                                     <div><label class="text-xs text-gray-400">淨損益</label><input v-model.number="formData.netPL" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white font-bold"></div>
@@ -254,7 +254,6 @@
                                 <button @click="autoCalculate" class="w-full text-xs text-blue-400 border border-blue-900 rounded py-1 hover:bg-blue-900/30">⚡ 試算費用 (賣出)</button>
                             </div>
                         </div>
-
                         <div class="flex gap-3 mt-6">
                             <button @click="saveData" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold text-sm transition">儲存</button>
                             <button @click="showModal = false" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold text-sm transition">取消</button>
@@ -284,7 +283,7 @@
                 const editingId = ref(null);
                 const formData = ref({});
 
-                // Firestore Sync
+                // Firestore Sync (等待 window.db 初始化)
                 const initFirebaseSync = () => {
                     const { onSnapshot, collection, query, orderBy } = window.firebaseOps;
                     if(!window.db) return;
@@ -296,70 +295,41 @@
                 const fetchStockName = async () => {
                     const code = formData.value.code;
                     if (!code || code.length < 3) return;
-                    
                     fetchingName.value = true;
                     try {
-                        // 嘗試呼叫 API
                         const res = await fetch(`/api/quote?symbols=${code}`);
-                        if (!res.ok) throw new Error("API_ERROR");
                         const data = await res.json();
-                        
-                        // 比對代號
                         const key = code.toUpperCase();
-                        const stockData = data[key] || data[Object.keys(data)[0]]; // 抓取第一個結果
-                        
+                        const stockData = data[key] || data[`${key}.TW`]; 
                         if (stockData && stockData.name) {
                             formData.value.name = stockData.name;
-                            if (modalMode.value === 'add' && !formData.value.price) {
-                                formData.value.price = stockData.price;
-                            }
+                            if (modalMode.value === 'add' && !formData.value.price) formData.value.price = stockData.price;
                         }
-                    } catch (e) {
-                        console.error("無法抓取名稱", e);
-                        if(e.message === "API_ERROR") {
-                            alert("⚠️ 連線失敗：無法連接報價伺服器。\n請確認您的 Vercel 部署狀態 (404 Not Found)。");
-                        }
-                    }
+                    } catch (e) { console.error("無法抓取名稱", e); }
                     fetchingName.value = false;
                 };
 
-                // 批量更新股價
+                // 更新股價
                 const refreshPrices = async () => {
                     loadingPrices.value = true;
                     const symbols = [...new Set(holdings.value.map(h => h.code))];
                     if(symbols.length === 0) { loadingPrices.value = false; return; }
-
                     try {
                         const res = await fetch(`/api/quote?symbols=${symbols.join(',')}`);
-                        if (!res.ok) throw new Error("API_ERROR");
-                        
                         const data = await res.json();
                         const { updateDoc, doc } = window.firebaseOps;
-                        
-                        let updatedCount = 0;
                         for (const stock of holdings.value) {
                             const key = stock.code.toUpperCase();
-                            // 後端現在會去掉 .TW，所以直接比對 key，或比對 .TW 版
                             const stockData = data[key] || data[`${key}.TW`]; 
-                            
                             if (stockData && stockData.price) {
-                                await updateDoc(doc(window.db, "holdings", stock.id), {
-                                    currentPrice: stockData.price,
-                                    name: stockData.name || stock.name 
-                                });
-                                updatedCount++;
+                                await updateDoc(doc(window.db, "holdings", stock.id), { currentPrice: stockData.price, name: stockData.name || stock.name });
                             }
                         }
-                        // 成功提示可選
-                        // console.log(`已更新 ${updatedCount} 檔股價`);
-                    } catch (e) {
-                        console.error("更新失敗", e);
-                        alert("⚠️ 更新失敗：後端 API 無回應 (404)。\n請檢查您的 Vercel 專案是否包含 api/quote.js 且結構正確。");
-                    }
+                    } catch (e) { alert("⚠️ 更新失敗"); }
                     loadingPrices.value = false;
                 };
 
-                // 儲存邏輯
+                // ★★★ 核心：儲存邏輯 (合併均價) ★★★
                 const saveData = async () => {
                     const { addDoc, updateDoc, collection, doc } = window.firebaseOps;
                     const colName = modalType.value;
@@ -367,89 +337,63 @@
 
                     data.price = Number(data.price) || 0;
                     data.volume = Number(data.volume) || 0;
+                    data.code = (data.code || '').toUpperCase();
                     if (!data.name) data.name = data.code;
 
                     if (colName === 'holdings') {
                         data.cost = data.price;
-                        // 確保現價有值，否則顯示異常
                         if (!data.currentPrice) data.currentPrice = data.cost;
                         delete data.price;
-                    } else {
-                        data.fee = Number(data.fee) || 0;
-                        data.tax = Number(data.tax) || 0;
-                        data.netPL = Number(data.netPL) || 0;
-                        data.roi = Number(data.roi) || 0;
-                    }
 
-                    if (modalMode.value === 'add') {
-                        await addDoc(collection(window.db, colName), data);
+                        if (modalMode.value === 'add') {
+                            const existing = holdings.value.find(h => h.code === data.code && h.type === data.type);
+                            if (existing) {
+                                const oldVol = Number(existing.volume);
+                                const newVol = Number(data.volume);
+                                const avgCost = ((Number(existing.cost) * oldVol) + (data.cost * newVol)) / (oldVol + newVol);
+                                await updateDoc(doc(window.db, colName, existing.id), { volume: oldVol + newVol, cost: avgCost, currentPrice: data.currentPrice });
+                            } else {
+                                await addDoc(collection(window.db, colName), data);
+                            }
+                        } else {
+                            await updateDoc(doc(window.db, colName, editingId.value), data);
+                        }
                     } else {
-                        await updateDoc(doc(window.db, colName, editingId.value), data);
+                        // History
+                        data.fee = Number(data.fee)||0; data.tax = Number(data.tax)||0; data.netPL = Number(data.netPL)||0; data.roi = Number(data.roi)||0;
+                        if (modalMode.value === 'add') await addDoc(collection(window.db, colName), data);
+                        else await updateDoc(doc(window.db, colName, editingId.value), data);
                     }
                     showModal.value = false;
                 };
 
                 // UI Helpers
-                const openModal = (type) => {
-                    modalType.value = type;
-                    modalMode.value = 'add';
-                    formData.value = { date: new Date().toISOString().split('T')[0], type: '現股', price: 0, volume: 1000 };
-                    showModal.value = true;
-                };
-                const editItem = (type, item) => {
-                    modalType.value = type;
-                    modalMode.value = 'edit';
-                    editingId.value = item.id;
-                    formData.value = { ...item };
-                    if(type === 'holdings') formData.value.price = item.cost;
-                    showModal.value = true;
-                };
-                const deleteItem = async (type, id) => {
-                    if(confirm('確定刪除?')) await window.firebaseOps.deleteDoc(window.firebaseOps.doc(window.db, type, id));
-                };
-                const autoCalculate = () => {
-                    const p = formData.value.price;
-                    const v = formData.value.volume;
-                    const fee = Math.floor(p * v * 0.001425); 
-                    const tax = Math.floor(p * v * 0.003);
-                    formData.value.fee = fee;
-                    formData.value.tax = tax;
-                    alert('已填入手續費與交易稅，請手動計算淨損益');
-                };
-
+                const openModal = (type) => { modalType.value = type; modalMode.value = 'add'; formData.value = { date: new Date().toISOString().split('T')[0], type: '現股', price: 0, volume: 1000 }; showModal.value = true; };
+                const editItem = (type, item) => { modalType.value = type; modalMode.value = 'edit'; editingId.value = item.id; formData.value = { ...item }; if(type==='holdings') formData.value.price=item.cost; showModal.value = true; };
+                const deleteItem = async (type, id) => { if(confirm('確定刪除?')) await window.firebaseOps.deleteDoc(window.firebaseOps.doc(window.db, type, id)); };
+                const autoCalculate = () => { const p = formData.value.price; const v = formData.value.volume; formData.value.fee = Math.floor(p*v*0.001425); formData.value.tax = Math.floor(p*v*0.003); alert('已填入費用'); };
+                
                 // Formatter & Colors
                 const formatCurrency = (v) => new Intl.NumberFormat('zh-TW', {style:'currency', currency:'TWD', minimumFractionDigits:0}).format(v||0);
                 const formatNumber = (v) => new Intl.NumberFormat('zh-TW').format(v||0);
                 const formatPercent = (v) => ((v||0) * 100).toFixed(2) + '%';
-                
-                // ★★★ 核心顏色邏輯：台股紅漲(up) 綠跌(down) ★★★
                 const getColorClass = (v) => v > 0 ? 'text-up' : (v < 0 ? 'text-down' : 'text-gray-400');
                 const getPriceColor = (s) => s.currentPrice > s.cost ? 'text-up' : (s.currentPrice < s.cost ? 'text-down' : 'text-white');
-                const getTypeBadge = (t) => {
-                    const m = {'現股':'border-blue-800 text-blue-400', '融資':'border-orange-800 text-orange-400', '期貨':'border-red-800 text-red-400'};
-                    return m[t] ? `bg-${m[t].split(' ')[0].replace('border-','')} ${m[t]}` : 'bg-gray-800 text-gray-300';
-                };
-
-                // Computed
+                const getTypeBadge = (t) => { const m = {'現股':'border-blue-800 text-blue-400', '融資':'border-orange-800 text-orange-400', '期貨':'border-red-800 text-red-400'}; return m[t] ? `bg-${m[t].split(' ')[0].replace('border-','')} ${m[t]}` : 'bg-gray-800 text-gray-300'; };
                 const calculateUnrealizedPL = (s) => (s.currentPrice * s.volume) - (s.cost * s.volume);
                 const calculateUnrealizedRate = (s) => s.cost ? (s.currentPrice - s.cost) / s.cost : 0;
                 
                 const totalAssets = computed(() => holdings.value.reduce((a, b) => a + (b.currentPrice * b.volume), 0));
                 const totalUnrealizedPL = computed(() => holdings.value.reduce((a, b) => a + calculateUnrealizedPL(b), 0));
-                const totalUnrealizedPLRate = computed(() => {
-                    const cost = holdings.value.reduce((a, b) => a + (b.cost * b.volume), 0);
-                    return cost ? totalUnrealizedPL.value / cost : 0;
-                });
+                const totalUnrealizedPLRate = computed(() => { const cost = holdings.value.reduce((a, b) => a + (b.cost * b.volume), 0); return cost ? totalUnrealizedPL.value / cost : 0; });
                 const totalRealizedPL = computed(() => history.value.reduce((a, b) => a + (b.netPL||0), 0));
                 const annualROI = computed(() => totalRealizedPL.value / 5000000);
 
                 onMounted(() => {
-                    const check = setInterval(() => {
-                        if (window.firebaseOps && window.db) {
-                            initFirebaseSync();
-                            clearInterval(check);
-                        }
-                    }, 200);
+                    // 監聽 Firebase Ready 事件
+                    window.addEventListener('firebase-ready', () => { initFirebaseSync(); });
+                    // 如果已經 ready 了直接執行 (防 race condition)
+                    if (window.db) initFirebaseSync();
                     setInterval(() => currentTime.value = new Date().toLocaleString('zh-TW', {hour12:false}), 1000);
                 });
 
