@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALPHA TRADER Pro - Ultimate Edition</title>
+    <title>ALPHA TRADER Pro - Account Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     
@@ -25,7 +25,6 @@
                 console.log("Firebase initialized");
             } catch (e) {
                 console.error(e);
-                alert("⚠️ 系統警告：無法讀取設定，請檢查 API 連線。");
             }
         }
         initApp();
@@ -49,39 +48,38 @@
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
         .number-font { font-family: 'JetBrains Mono', monospace; }
         [v-cloak] { display: none; }
-        
-        /* 側邊欄按鈕樣式 (強制不換行，確保單列) */
+        /* 側邊欄按鈕樣式 */
         .nav-btn { 
-            @apply w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors flex items-center mb-1 whitespace-nowrap; 
+            @apply w-full text-left px-6 py-4 rounded-xl text-lg font-bold transition-all flex items-center mb-2 whitespace-nowrap; 
         }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 h-screen overflow-hidden flex flex-col font-sans">
 
     <div id="app" v-cloak class="flex h-full">
-        <aside class="w-64 bg-gray-900 border-r border-gray-800 flex flex-col flex-shrink-0">
-            <div class="p-6 border-b border-gray-800">
-                <h1 class="text-xl font-bold tracking-wider text-blue-400">ALPHA TRADER</h1>
-                <p class="text-xs text-gray-500 mt-1">Global Asset Wallet</p>
+        <aside class="w-72 bg-gray-900 border-r border-gray-800 flex flex-col flex-shrink-0">
+            <div class="p-8 border-b border-gray-800">
+                <h1 class="text-2xl font-black tracking-wider text-blue-500">ALPHA TRADER</h1>
+                <p class="text-sm text-gray-500 mt-2 font-medium">Account Master</p>
             </div>
-            <nav class="flex-1 p-4 flex flex-col gap-2 overflow-y-auto">
-                <button @click="currentTab = 'dashboard'" :class="getTabClass('dashboard')" class="nav-btn">
-                    <span class="w-6 mr-2">📊</span> 總覽儀表板
+            <nav class="flex-1 p-6 flex flex-col gap-2 overflow-y-auto">
+                <button @click="switchTab('dashboard')" :class="getTabClass('dashboard')" class="nav-btn">
+                    <span class="w-8 mr-3 text-xl">📊</span> 總覽儀表板
                 </button>
-                <button @click="currentTab = 'holdings'" :class="getTabClass('holdings')" class="nav-btn">
-                    <span class="w-6 mr-2">💼</span> 台股庫存
+                <button @click="switchTab('holdings')" :class="getTabClass('holdings')" class="nav-btn">
+                    <span class="w-8 mr-3 text-xl">💼</span> 台股庫存
                 </button>
-                <button @click="currentTab = 'us_stocks'" :class="getTabClass('us_stocks')" class="nav-btn hover:bg-blue-900/20">
-                    <span class="w-6 mr-2">🇺🇸</span> 美股配置
+                <button @click="switchTab('us_stocks')" :class="getTabClass('us_stocks')" class="nav-btn hover:bg-blue-900/20">
+                    <span class="w-8 mr-3 text-xl">🇺🇸</span> 美股配置
                 </button>
-                <button @click="currentTab = 'gold'" :class="getTabClass('gold')" class="nav-btn text-yellow-500 hover:bg-yellow-900/20">
-                    <span class="w-6 mr-2">🏆</span> 黃金存摺
+                <button @click="switchTab('gold')" :class="getTabClass('gold')" class="nav-btn text-yellow-500 hover:bg-yellow-900/20">
+                    <span class="w-8 mr-3 text-xl">🏆</span> 黃金存摺
                 </button>
-                <button @click="currentTab = 'history'" :class="getTabClass('history')" class="nav-btn">
-                    <span class="w-6 mr-2">📜</span> 已實現損益
+                <button @click="switchTab('history', 'all')" :class="getTabClass('history')" class="nav-btn">
+                    <span class="w-8 mr-3 text-xl">📜</span> 已實現損益
                 </button>
             </nav>
-            <div class="p-4 border-t border-gray-800 text-xs text-gray-500 text-center">
+            <div class="p-6 border-t border-gray-800 text-sm text-gray-500 text-center font-mono">
                 {{ currentTime }}
             </div>
         </aside>
@@ -107,162 +105,89 @@
                         <div class="text-xl font-bold number-font text-yellow-400">{{ formatCurrency(totalGoldCost) }}</div>
                     </div>
                 </div>
-
-                <div v-else-if="currentTab === 'us_stocks'" class="grid grid-cols-2 gap-6">
-                    <div class="bg-blue-900/20 rounded-xl p-4 border border-blue-700/50">
-                        <div class="text-blue-400 text-xs mb-1">美股總資產 (USD)</div>
-                        <div class="text-3xl font-bold number-font text-white">$ {{ formatPrice(totalUSAssets) }}</div>
+                <div v-else-if="currentTab === 'holdings'" class="grid grid-cols-4 gap-6">
+                     <div class="stat-card"><div class="text-gray-400 text-xs">台股總資產</div><div class="text-2xl font-bold number-font">{{ formatCurrency(totalAssets) }}</div></div>
+                     <div class="stat-card"><div class="text-gray-400 text-xs">台股未實現</div><div class="text-2xl font-bold number-font" :class="getColorClass(totalUnrealizedPL)">{{ formatCurrency(totalUnrealizedPL) }}</div></div>
+                     <div class="stat-card"><div class="text-gray-400 text-xs">台股已實現 (累計)</div><div class="text-2xl font-bold number-font" :class="getColorClass(totalTwRealizedPL)">{{ formatCurrency(totalTwRealizedPL) }}</div></div>
+                     <div class="stat-card"><div class="text-gray-400 text-xs">台股報酬率</div><div class="text-2xl font-bold number-font" :class="getColorClass(annualROI)">{{ formatPercent(annualROI) }}</div></div>
+                </div>
+                <div v-else-if="currentTab === 'us_stocks'" class="grid grid-cols-4 gap-6">
+                     <div class="stat-card border-blue-900/50"><div class="text-blue-400 text-xs">美股總資產</div><div class="text-2xl font-bold number-font text-white">$ {{ formatPrice(totalUSAssets) }}</div></div>
+                     <div class="stat-card border-blue-900/50"><div class="text-blue-400 text-xs">美股未實現</div><div class="text-2xl font-bold number-font" :class="getColorClass(totalUSUnrealizedPL)">$ {{ formatPrice(totalUSUnrealizedPL) }}</div></div>
+                     <div class="stat-card border-blue-900/50"><div class="text-blue-400 text-xs">美股已實現 (累計)</div><div class="text-2xl font-bold number-font" :class="getColorClass(totalUsRealizedPL)">$ {{ formatPrice(totalUsRealizedPL) }}</div></div>
+                     <div class="stat-card border-blue-900/50"><div class="text-blue-400 text-xs">美股報酬率</div><div class="text-2xl font-bold number-font" :class="getColorClass(totalUSUnrealizedRate)">{{ formatPercent(totalUSUnrealizedRate) }}</div></div>
+                </div>
+                <div v-else-if="currentTab === 'history'" class="flex items-center gap-4">
+                    <div class="text-white text-lg font-bold mr-4">
+                        {{ historyFilter === 'tw' ? '台股' : (historyFilter === 'us' ? '美股' : '總') }}歷史損益
                     </div>
-                    <div class="bg-blue-900/20 rounded-xl p-4 border border-blue-700/50">
-                        <div class="text-blue-400 text-xs mb-1">未實現損益 (USD)</div>
-                        <div :class="getColorClass(totalUSUnrealizedPL)" class="text-3xl font-bold number-font">
-                            $ {{ formatPrice(totalUSUnrealizedPL) }}
-                            <span class="text-lg ml-2">({{ formatPercent(totalUSUnrealizedRate) }})</span>
+                    <div class="stat-card flex-1">
+                        <div class="text-gray-400 text-xs">累計獲利</div>
+                        <div class="text-2xl font-bold number-font" :class="getColorClass(currentFilteredTotalPL)">
+                            {{ historyFilter === 'us' ? '$ ' : '' }}{{ historyFilter === 'us' ? formatPrice(currentFilteredTotalPL) : formatCurrency(currentFilteredTotalPL) }}
                         </div>
                     </div>
                 </div>
-
-                <div v-else-if="currentTab === 'gold'" class="grid grid-cols-2 gap-6">
-                     <div class="bg-yellow-900/20 rounded-xl p-4 border border-yellow-700/50">
-                        <div class="text-yellow-500 text-xs mb-1">庫存總克數 (g)</div>
-                        <div class="text-3xl font-bold number-font text-yellow-400">{{ formatNumber(totalGoldWeight) }} g</div>
-                    </div>
-                    <div class="bg-yellow-900/20 rounded-xl p-4 border border-yellow-700/50">
-                        <div class="text-yellow-500 text-xs mb-1">黃金總成本</div>
-                        <div class="text-3xl font-bold number-font text-white">{{ formatCurrency(totalGoldCost) }}</div>
-                    </div>
-                </div>
-
-                <div v-else class="grid grid-cols-4 gap-6">
-                    <div class="stat-card">
-                        <div class="text-gray-400 text-xs mb-1">台股總資產</div>
-                        <div class="text-2xl font-bold number-font">{{ formatCurrency(totalAssets) }}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="text-gray-400 text-xs mb-1">未實現損益</div>
-                        <div :class="getColorClass(totalUnrealizedPL)" class="text-2xl font-bold number-font">
-                            {{ formatCurrency(totalUnrealizedPL) }}
-                            <span class="text-sm ml-2">({{ formatPercent(totalUnrealizedPLRate) }})</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="text-gray-400 text-xs mb-1">已實現損益</div>
-                        <div :class="getColorClass(totalRealizedPL)" class="text-2xl font-bold number-font">{{ formatCurrency(totalRealizedPL) }}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="text-gray-400 text-xs mb-1">年度報酬率</div>
-                        <div :class="getColorClass(annualROI)" class="text-2xl font-bold number-font">{{ formatPercent(annualROI) }}</div>
-                    </div>
-                </div>
-            </header>
+                <div v-else class="h-20"></div> </header>
 
             <div class="flex-1 overflow-auto p-6 relative scroll-smooth">
                 
                 <div v-if="currentTab === 'dashboard'" class="space-y-8">
                     <div>
-                        <h3 class="text-lg font-bold text-white mb-4 flex items-center"><span class="w-1 h-6 bg-blue-500 rounded-full mr-3"></span> 台股庫存概覽</h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-white flex items-center"><span class="w-1 h-6 bg-blue-500 rounded-full mr-3"></span> 台股庫存概覽</h3>
+                            <button @click="switchTab('holdings')" class="text-xs text-blue-400 hover:text-blue-300">前往台股 ></button>
+                        </div>
                         <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl">
-                            <table class="w-full text-sm text-left">
-                                <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
-                                    <tr><th class="px-4 py-3 text-center">代號</th><th class="px-4 py-3 text-center">名稱</th><th class="px-4 py-3 text-center">現價</th><th class="px-4 py-3 text-center">損益</th><th class="px-4 py-3 text-center">%</th></tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-800">
-                                    <tr v-for="stock in sortedHoldings.slice(0, 5)" :key="stock.id" class="hover:bg-gray-800/50">
-                                        <td class="px-4 py-3 text-center font-bold">{{ stock.code }}</td>
-                                        <td class="px-4 py-3 text-center text-gray-300">{{ stock.name }}</td>
-                                        <td class="px-4 py-3 text-center number-font" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
-                                        <td class="px-4 py-3 text-center number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td>
-                                        <td class="px-4 py-3 text-center number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
-                                    </tr>
-                                    <tr v-if="sortedHoldings.length === 0"><td colspan="5" class="py-4 text-center text-gray-500">無庫存資料</td></tr>
-                                </tbody>
-                            </table>
+                            <table class="w-full text-sm text-left"><thead class="bg-gray-800 text-gray-400 text-xs uppercase"><tr><th class="px-4 py-3 text-center">代號</th><th class="px-4 py-3 text-center">名稱</th><th class="px-4 py-3 text-center">現價</th><th class="px-4 py-3 text-center">損益</th><th class="px-4 py-3 text-center">%</th></tr></thead><tbody class="divide-y divide-gray-800"><tr v-for="stock in sortedHoldings.slice(0, 5)" :key="stock.id" class="hover:bg-gray-800/50"><td class="px-4 py-3 text-center font-bold">{{ stock.code }}</td><td class="px-4 py-3 text-center text-gray-300">{{ stock.name }}</td><td class="px-4 py-3 text-center number-font" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td><td class="px-4 py-3 text-center number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td><td class="px-4 py-3 text-center number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td></tr><tr v-if="sortedHoldings.length === 0"><td colspan="5" class="py-4 text-center text-gray-500">無庫存資料</td></tr></tbody></table>
                         </div>
                     </div>
-
                     <div>
-                        <h3 class="text-lg font-bold text-white mb-4 flex items-center"><span class="w-1 h-6 bg-blue-600 rounded-full mr-3"></span> 美股庫存概覽</h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-white flex items-center"><span class="w-1 h-6 bg-blue-600 rounded-full mr-3"></span> 美股庫存概覽</h3>
+                            <button @click="switchTab('us_stocks')" class="text-xs text-blue-400 hover:text-blue-300">前往美股 ></button>
+                        </div>
                         <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl">
-                            <table class="w-full text-sm text-left">
-                                <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
-                                    <tr><th class="px-4 py-3 text-center">代號</th><th class="px-4 py-3 text-center">名稱</th><th class="px-4 py-3 text-center">現價 (USD)</th><th class="px-4 py-3 text-center">損益 (USD)</th><th class="px-4 py-3 text-center">%</th></tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-800">
-                                    <tr v-for="stock in usHoldings.slice(0, 5)" :key="stock.id" class="hover:bg-gray-800/50">
-                                        <td class="px-4 py-3 text-center font-bold text-blue-400">{{ stock.code }}</td>
-                                        <td class="px-4 py-3 text-center text-gray-300">{{ stock.name }}</td>
-                                        <td class="px-4 py-3 text-center number-font" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
-                                        <td class="px-4 py-3 text-center number-font" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
-                                        <td class="px-4 py-3 text-center number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
-                                    </tr>
-                                    <tr v-if="usHoldings.length === 0"><td colspan="5" class="py-4 text-center text-gray-500">無庫存資料</td></tr>
-                                </tbody>
-                            </table>
+                            <table class="w-full text-sm text-left"><thead class="bg-gray-800 text-gray-400 text-xs uppercase"><tr><th class="px-4 py-3 text-center">代號</th><th class="px-4 py-3 text-center">名稱</th><th class="px-4 py-3 text-center">現價 (USD)</th><th class="px-4 py-3 text-center">損益</th><th class="px-4 py-3 text-center">%</th></tr></thead><tbody class="divide-y divide-gray-800"><tr v-for="stock in usHoldings.slice(0, 5)" :key="stock.id" class="hover:bg-gray-800/50"><td class="px-4 py-3 text-center font-bold text-blue-400">{{ stock.code }}</td><td class="px-4 py-3 text-center text-gray-300">{{ stock.name }}</td><td class="px-4 py-3 text-center number-font" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td><td class="px-4 py-3 text-center number-font" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td><td class="px-4 py-3 text-center number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td></tr><tr v-if="usHoldings.length === 0"><td colspan="5" class="py-4 text-center text-gray-500">無庫存資料</td></tr></tbody></table>
                         </div>
                     </div>
                 </div>
 
                 <div v-if="currentTab === 'holdings'" class="mb-10">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold text-white flex items-center gap-3">
-                            <span class="w-1 h-6 bg-blue-500 rounded-full"></span> 台股庫存
-                            <button @click="refreshPrices('tw')" class="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded border border-gray-700 transition flex items-center gap-2">
-                                <span v-if="loadingPrices" class="animate-spin">⟳</span>
-                                <span>{{ loadingPrices ? '更新中...' : '🔄 更新台股' }}</span>
+                        <div class="flex gap-2">
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2"><span class="w-1 h-6 bg-blue-500 rounded-full"></span> 台股庫存</h2>
+                            <button @click="switchTab('history', 'tw')" class="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs border border-gray-600 transition flex items-center gap-1">
+                                📜 台股已實現損益
                             </button>
-                        </h2>
-                        <button @click="openModal('holdings')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm font-bold transition">
-                            + 新增台股
-                        </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="refreshPrices('tw')" class="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded border border-gray-700 transition flex items-center gap-2">
+                                <span v-if="loadingPrices" class="animate-spin">⟳</span><span>{{ loadingPrices ? '更新中' : '更新股價' }}</span>
+                            </button>
+                            <button @click="openModal('holdings')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm font-bold transition">+ 新增台股</button>
+                        </div>
                     </div>
                     <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl">
                         <table class="w-full text-sm text-left">
-                            <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
-                                <tr>
-                                    <th class="px-4 py-3 text-center">分類</th>
-                                    <th class="px-4 py-3 text-center">名稱(代號)</th>
-                                    <th class="px-4 py-3 text-center">均價</th>
-                                    <th class="px-4 py-3 text-center">現價</th>
-                                    <th class="px-4 py-3 text-center">股數</th>
-                                    <th class="px-4 py-3 text-center">損益</th>
-                                    <th class="px-4 py-3 text-center">%</th>
-                                    <th class="px-4 py-3 text-center">操作</th>
-                                </tr>
-                            </thead>
+                            <thead class="bg-gray-800 text-gray-400 text-xs uppercase"><tr><th class="px-4 py-3 text-center">分類</th><th class="px-4 py-3 text-center">名稱(代號)</th><th class="px-4 py-3 text-center">均價</th><th class="px-4 py-3 text-center">現價</th><th class="px-4 py-3 text-center">股數</th><th class="px-4 py-3 text-center">損益</th><th class="px-4 py-3 text-center">%</th><th class="px-4 py-3 text-center">操作</th></tr></thead>
                             <tbody class="divide-y divide-gray-800">
                                 <template v-for="stock in sortedHoldings" :key="stock.id">
-                                    <tr @click="toggleExpand(stock.id)" class="hover:bg-gray-800/50 cursor-pointer group transition-colors">
+                                    <tr @click="toggleExpand(stock.id)" class="hover:bg-gray-800/50 cursor-pointer group">
                                         <td class="px-4 py-3 text-center"><span :class="getTypeBadge(stock.type)" class="px-2 py-0.5 rounded text-xs border font-normal">{{ stock.type }}</span></td>
-                                        <td class="px-4 py-3 text-center">
-                                            <div class="font-bold text-white text-base">
-                                                {{ stock.name }}<span class="text-gray-400 text-sm font-normal ml-1">({{ stock.code }})</span>
-                                                <span v-if="expandedSet.has(stock.id)" class="text-xs text-blue-400 ml-2">▼</span>
-                                            </div>
-                                        </td>
+                                        <td class="px-4 py-3 text-center font-bold text-white">{{ stock.name }} <span class="text-gray-400 text-xs">({{ stock.code }})</span></td>
                                         <td class="px-4 py-3 text-center number-font text-gray-300">{{ formatPrice(stock.cost) }}</td>
                                         <td class="px-4 py-3 text-center number-font font-bold" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
-                                        <td class="px-4 py-3 text-center number-font text-gray-300">{{ formatNumber(stock.volume) }}</td>
+                                        <td class="px-4 py-3 text-center number-font">{{ formatNumber(stock.volume) }}</td>
                                         <td class="px-4 py-3 text-center number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td>
                                         <td class="px-4 py-3 text-center number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
                                         <td class="px-4 py-3 text-center" @click.stop>
-                                            <button @click="editItem('holdings', stock)" class="text-gray-500 hover:text-blue-400 mr-3">✎</button>
+                                            <button @click="openSellModal(stock)" class="bg-red-900/30 text-red-400 px-2 py-1 rounded text-xs mr-2">賣出</button>
+                                            <button @click="editItem('holdings', stock)" class="text-gray-500 hover:text-blue-400 mr-2">✎</button>
                                             <button @click="confirmDelete('holdings', stock.id)" class="text-gray-500 hover:text-red-400">✕</button>
                                         </td>
                                     </tr>
-                                    <tr v-if="expandedSet.has(stock.id)" class="bg-gray-900/50 border-b border-gray-800">
-                                        <td colspan="8" class="p-0">
-                                            <div class="p-4 bg-gray-800/30 shadow-inner">
-                                                <table class="w-full text-xs text-gray-300">
-                                                    <thead><tr class="text-gray-500 border-b border-gray-700"><th class="py-2 text-center">日期</th><th class="py-2 text-center">單價</th><th class="py-2 text-center">股數</th><th class="py-2 text-center">手續費</th></tr></thead>
-                                                    <tbody>
-                                                        <tr v-for="(lot, idx) in (stock.lots || [])" :key="idx" class="border-b border-gray-700/50">
-                                                            <td class="py-2 text-center number-font">{{ lot.date }}</td><td class="py-2 text-center number-font">{{ formatPrice(lot.price) }}</td><td class="py-2 text-center number-font">{{ formatNumber(lot.volume) }}</td><td class="py-2 text-center number-font">{{ lot.fee }}</td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                    <tr v-if="expandedSet.has(stock.id)" class="bg-gray-900/50 border-b border-gray-800"><td colspan="8" class="p-4"><div class="bg-gray-800/30 p-2"><table class="w-full text-xs text-gray-300"><thead><tr><th>日期</th><th>買價</th><th>股數</th><th>手續費</th><th>操作</th></tr></thead><tbody><tr v-for="(l,i) in stock.lots" :key="i" class="text-center"><td>{{l.date}}</td><td>{{l.price}}</td><td>{{l.volume}}</td><td>{{l.fee}}</td><td><button @click="openEditLotModal(stock,i)" class="text-blue-400 mr-2">✎</button><button @click="deleteLot(stock,i)" class="text-red-400">✕</button></td></tr></tbody></table></div></td></tr>
                                 </template>
                             </tbody>
                         </table>
@@ -271,99 +196,94 @@
 
                 <div v-if="currentTab === 'us_stocks'" class="mb-10">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold text-white flex items-center gap-3">
-                            <span class="w-1 h-6 bg-blue-600 rounded-full"></span> 美股配置
-                            <button @click="refreshPrices('us')" class="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded border border-gray-700 transition flex items-center gap-2">
-                                <span v-if="loadingPrices" class="animate-spin">⟳</span>
-                                <span>{{ loadingPrices ? '更新中...' : '🔄 更新美股' }}</span>
+                        <div class="flex gap-2">
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2"><span class="w-1 h-6 bg-blue-600 rounded-full"></span> 美股配置</h2>
+                            <button @click="switchTab('history', 'us')" class="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs border border-gray-600 transition flex items-center gap-1">
+                                📜 美股已實現損益
                             </button>
-                        </h2>
-                        <button @click="openModal('us_stocks')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm font-bold transition">
-                            + 新增美股
-                        </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="refreshPrices('us')" class="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded border border-gray-700 transition flex items-center gap-2">
+                                <span v-if="loadingPrices" class="animate-spin">⟳</span><span>更新美股</span>
+                            </button>
+                            <button @click="openModal('us_stocks')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm font-bold transition">+ 新增美股</button>
+                        </div>
                     </div>
                     <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl">
                         <table class="w-full text-sm text-left">
-                            <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
-                                <tr>
-                                    <th class="px-4 py-3 text-center">代號</th>
-                                    <th class="px-4 py-3 text-center">名稱</th>
-                                    <th class="px-4 py-3 text-center">均價 (USD)</th>
-                                    <th class="px-4 py-3 text-center">現價 (USD)</th>
-                                    <th class="px-4 py-3 text-center">股數</th>
-                                    <th class="px-4 py-3 text-center">損益 (USD)</th>
-                                    <th class="px-4 py-3 text-center">%</th>
-                                    <th class="px-4 py-3 text-center">操作</th>
-                                </tr>
-                            </thead>
+                            <thead class="bg-gray-800 text-gray-400 text-xs uppercase"><tr><th class="px-4 py-3 text-center">代號</th><th class="px-4 py-3 text-center">名稱</th><th class="px-4 py-3 text-center">均價 (USD)</th><th class="px-4 py-3 text-center">現價 (USD)</th><th class="px-4 py-3 text-center">股數</th><th class="px-4 py-3 text-center">損益 (USD)</th><th class="px-4 py-3 text-center">%</th><th class="px-4 py-3 text-center">操作</th></tr></thead>
                             <tbody class="divide-y divide-gray-800">
-                                <tr v-for="stock in usHoldings" :key="stock.id" class="hover:bg-gray-800/50">
-                                    <td class="px-4 py-3 text-center font-bold text-white">{{ stock.code }}</td>
-                                    <td class="px-4 py-3 text-center text-gray-300">{{ stock.name }}</td>
-                                    <td class="px-4 py-3 text-center number-font text-gray-300">{{ formatPrice(stock.cost) }}</td>
-                                    <td class="px-4 py-3 text-center number-font font-bold" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
-                                    <td class="px-4 py-3 text-center number-font text-gray-300">{{ formatNumber(stock.volume) }}</td>
-                                    <td class="px-4 py-3 text-center number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
-                                    <td class="px-4 py-3 text-center number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
-                                    <td class="px-4 py-3 text-center">
-                                        <button @click="editItem('us_stocks', stock)" class="text-gray-500 hover:text-blue-400 mr-3">✎</button>
-                                        <button @click="confirmDelete('us_stocks', stock.id)" class="text-gray-500 hover:text-red-400">✕</button>
-                                    </td>
-                                </tr>
+                                <template v-for="stock in usHoldings" :key="stock.id">
+                                    <tr @click="toggleExpand(stock.id)" class="hover:bg-gray-800/50 cursor-pointer group">
+                                        <td class="px-4 py-3 text-center font-bold text-blue-400">{{ stock.code }}</td>
+                                        <td class="px-4 py-3 text-center text-gray-300">{{ stock.name }}</td>
+                                        <td class="px-4 py-3 text-center number-font text-gray-300">{{ formatPrice(stock.cost) }}</td>
+                                        <td class="px-4 py-3 text-center number-font font-bold" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
+                                        <td class="px-4 py-3 text-center number-font">{{ formatNumber(stock.volume) }}</td>
+                                        <td class="px-4 py-3 text-center number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
+                                        <td class="px-4 py-3 text-center number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
+                                        <td class="px-4 py-3 text-center" @click.stop>
+                                            <button @click="openSellModal(stock)" class="bg-red-900/30 text-red-400 px-2 py-1 rounded text-xs mr-2">賣出</button>
+                                            <button @click="editItem('us_stocks', stock)" class="text-gray-500 hover:text-blue-400 mr-2">✎</button>
+                                            <button @click="confirmDelete('us_stocks', stock.id)" class="text-gray-500 hover:text-red-400">✕</button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="expandedSet.has(stock.id)" class="bg-gray-900/50 border-b border-gray-800"><td colspan="8" class="p-4"><div class="bg-gray-800/30 p-2"><table class="w-full text-xs text-gray-300"><thead><tr><th>日期</th><th>買價</th><th>股數</th><th>操作</th></tr></thead><tbody><tr v-for="(l,i) in stock.lots" :key="i" class="text-center"><td>{{l.date}}</td><td>{{l.price}}</td><td>{{l.volume}}</td><td><button @click="openEditLotModal(stock,i)" class="text-blue-400 mr-2">✎</button><button @click="deleteLot(stock,i)" class="text-red-400">✕</button></td></tr></tbody></table></div></td></tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
                 <div v-if="currentTab === 'gold'" class="mb-10">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold text-yellow-500 flex items-center gap-3">
-                            <span class="w-1 h-6 bg-yellow-500 rounded-full"></span> 黃金庫存
-                        </h2>
-                        <button @click="openModal('gold')" class="bg-yellow-600 hover:bg-yellow-500 text-black px-3 py-1.5 rounded text-sm font-bold transition">
-                            + 新增黃金
-                        </button>
-                    </div>
-                    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
-                                <tr>
-                                    <th class="px-4 py-3 text-center">買進日期</th>
-                                    <th class="px-4 py-3 text-center">重量 (g)</th>
-                                    <th class="px-4 py-3 text-center">總成本 (TWD)</th>
-                                    <th class="px-4 py-3 text-center">平均單價 (元/g)</th>
-                                    <th class="px-4 py-3 text-center">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-800">
-                                <tr v-for="g in goldList" :key="g.id" class="hover:bg-gray-800/50">
-                                    <td class="px-4 py-3 text-center number-font text-gray-300">{{ g.date }}</td>
-                                    <td class="px-4 py-3 text-center number-font font-bold text-yellow-400">{{ formatNumber(g.weight) }}</td>
-                                    <td class="px-4 py-3 text-center number-font">{{ formatNumber(g.cost) }}</td>
-                                    <td class="px-4 py-3 text-center number-font text-gray-400">{{ formatNumber(g.cost / g.weight) }}</td>
-                                    <td class="px-4 py-3 text-center">
-                                        <button @click="confirmDelete('gold', g.id)" class="text-gray-500 hover:text-red-400 transition">✕</button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-yellow-500">黃金庫存</h2><button @click="openModal('gold')" class="bg-yellow-600 text-black px-3 py-1.5 rounded text-sm font-bold">+ 新增黃金</button></div>
+                    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl"><table class="w-full text-sm text-left"><thead class="bg-gray-800 text-gray-400 text-xs uppercase"><tr><th class="px-4 py-3 text-center">日期</th><th class="px-4 py-3 text-center">重量</th><th class="px-4 py-3 text-center">成本</th><th class="px-4 py-3 text-center">操作</th></tr></thead><tbody><tr v-for="g in goldList" :key="g.id"><td class="px-4 py-3 text-center">{{g.date}}</td><td class="px-4 py-3 text-center text-yellow-400">{{g.weight}}g</td><td class="px-4 py-3 text-center">{{formatNumber(g.cost)}}</td><td class="px-4 py-3 text-center"><button @click="confirmDelete('gold',g.id)" class="text-red-400">✕</button></td></tr></tbody></table></div>
                 </div>
 
                 <div v-if="currentTab === 'history'" class="mb-10">
-                     <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl">
-                        <table class="w-full text-sm text-left">
-                             <thead class="bg-gray-800 text-gray-400 text-xs uppercase"><tr><th class="px-4 py-3 text-center">日期</th><th class="px-4 py-3 text-center">名稱</th><th class="px-4 py-3 text-center">獲利</th><th class="px-4 py-3 text-center">操作</th></tr></thead>
-                             <tbody>
-                                 <tr v-for="r in history" :key="r.id" class="hover:bg-gray-800/50">
-                                     <td class="px-4 py-3 text-center">{{ r.date }}</td>
-                                     <td class="px-4 py-3 text-center text-white">{{ r.name }} ({{ r.code }})</td>
-                                     <td class="px-4 py-3 text-center font-bold" :class="getColorClass(r.netPL)">{{ formatCurrency(r.netPL) }}</td>
-                                     <td class="px-4 py-3 text-center"><button @click="confirmDelete('history', r.id)" class="text-red-400">✕</button></td>
-                                 </tr>
-                             </tbody>
-                        </table>
-                     </div>
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex gap-2">
+                            <button @click="historyFilter = 'all'" :class="historyFilter==='all'?'bg-blue-600 text-white':'bg-gray-800 text-gray-400'" class="px-4 py-1.5 rounded-lg text-sm font-bold transition">全部</button>
+                            <button @click="historyFilter = 'tw'" :class="historyFilter==='tw'?'bg-blue-600 text-white':'bg-gray-800 text-gray-400'" class="px-4 py-1.5 rounded-lg text-sm font-bold transition">台股</button>
+                            <button @click="historyFilter = 'us'" :class="historyFilter==='us'?'bg-blue-600 text-white':'bg-gray-800 text-gray-400'" class="px-4 py-1.5 rounded-lg text-sm font-bold transition">美股</button>
+                        </div>
+                        <button @click="openModal('history')" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded text-sm font-bold transition">+ 補登紀錄</button>
+                    </div>
+
+                    <div v-if="filteredHistory.length === 0" class="text-center text-gray-500 py-10 bg-gray-900 rounded-xl">尚無交易紀錄</div>
+
+                    <div class="space-y-6">
+                        <div v-for="(group, monthKey) in groupedHistory" :key="monthKey" class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl">
+                            <div class="bg-gray-800/80 px-6 py-3 flex justify-between items-center border-b border-gray-700">
+                                <h3 class="text-white font-bold text-lg tracking-widest">{{ monthKey }}</h3>
+                                <div class="text-sm">
+                                    <span class="text-gray-400 mr-2">單月損益:</span>
+                                    <span class="font-bold text-lg number-font" :class="getColorClass(group.monthTotal)">
+                                        {{ historyFilter === 'us' ? '$ ' : '' }}{{ historyFilter === 'us' ? formatPrice(group.monthTotal) : formatCurrency(group.monthTotal) }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-800/30 text-gray-500 text-xs uppercase">
+                                    <tr><th class="px-4 py-2 text-center">日期</th><th class="px-4 py-2 text-center">分類</th><th class="px-4 py-2 text-center">名稱</th><th class="px-4 py-2 text-center">成交價</th><th class="px-4 py-2 text-center">股數</th><th class="px-4 py-2 text-center">獲利</th><th class="px-4 py-2 text-center">操作</th></tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-800">
+                                    <tr v-for="r in group.items" :key="r.id" class="hover:bg-gray-800/50">
+                                        <td class="px-4 py-3 text-center number-font text-gray-400">{{ r.date }}</td>
+                                        <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 rounded text-xs border" :class="getTypeBadge(r.type)">{{ r.type }}</span></td>
+                                        <td class="px-4 py-3 text-center text-white font-bold">{{ r.name }} <span class="text-gray-500 font-normal">({{ r.code }})</span></td>
+                                        <td class="px-4 py-3 text-center number-font">{{ historyFilter === 'us' ? formatPrice(r.price) : formatNumber(r.price) }}</td>
+                                        <td class="px-4 py-3 text-center number-font">{{ formatNumber(r.volume) }}</td>
+                                        <td class="px-4 py-3 text-center number-font font-bold" :class="getColorClass(r.netPL)">
+                                            {{ historyFilter === 'us' ? '$ ' : '' }}{{ historyFilter === 'us' ? formatPrice(r.netPL) : formatCurrency(r.netPL) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-center"><button @click="confirmDelete('history', r.id)" class="text-gray-500 hover:text-red-400">✕</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -372,44 +292,35 @@
                 <div v-if="showModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
                     <div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-96 shadow-2xl">
                         <h3 class="text-lg font-bold mb-4 text-white">
-                            {{ modalMode === 'add' ? '新增' : '編輯' }} 
-                            {{ modalType === 'gold' ? '黃金' : (modalType === 'us_stocks' ? '美股' : '台股') }}
+                            <span v-if="modalMode==='sell'" class="text-red-400">賣出股票</span>
+                            <span v-else>{{ modalMode === 'add' ? '新增' : '編輯' }} {{ modalTypeLabel }}</span>
                         </h3>
-                        
                         <div class="space-y-3">
-                            <div><label class="text-xs text-gray-400">日期</label><input v-model="formData.date" type="date" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none"></div>
-
-                            <div v-if="modalType === 'gold'" class="space-y-3">
+                            <div><label class="text-xs text-gray-400">日期</label><input v-model="formData.date" type="date" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"></div>
+                            
+                            <div v-if="modalType.includes('holdings') || modalType.includes('stocks') || modalType==='history'">
+                                <div class="grid grid-cols-2 gap-2" v-if="modalMode!=='sell' && modalMode!=='edit_lot'">
+                                    <div><label class="text-xs text-gray-400">代號</label><input v-model="formData.code" @blur="fetchStockName" type="text" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white uppercase" :disabled="modalMode==='edit'"></div>
+                                    <div><label class="text-xs text-gray-400">名稱</label><input v-model="formData.name" type="text" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"></div>
+                                </div>
+                                <div v-if="modalType!=='us_stocks' && modalMode!=='sell'"><label class="text-xs text-gray-400">分類</label><select v-model="formData.type" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"><option v-for="t in types" :value="t">{{ t }}</option></select></div>
                                 <div class="grid grid-cols-2 gap-2">
-                                    <div><label class="text-xs text-gray-400">重量 (克)</label><input v-model.number="formData.weight" type="number" min="1" step="1" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none"></div>
-                                    <div><label class="text-xs text-gray-400">總成本 (元)</label><input v-model.number="formData.cost" type="number" min="0" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none"></div>
+                                    <div><label class="text-xs text-gray-400">{{ modalMode==='sell'?'賣出均價':'價格' }}</label><input v-model.number="formData.price" type="number" step="0.01" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"></div>
+                                    <div><label class="text-xs text-gray-400">股數</label><input v-model.number="formData.volume" type="number" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"></div>
+                                </div>
+                                <div v-if="modalMode==='sell' && modalType!=='us_stocks'" class="p-2 bg-gray-800/50 rounded text-xs mt-2 text-gray-400 text-center">預估稅金與手續費將自動扣除</div>
+                                <div v-if="modalType==='history' && modalMode==='add'" class="pt-2 border-t border-gray-800 grid grid-cols-2 gap-2">
+                                    <div><label class="text-xs text-gray-400">淨損益</label><input v-model.number="formData.netPL" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white font-bold"></div>
+                                    <div><label class="text-xs text-gray-400">手續費</label><input v-model.number="formData.fee" type="number" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"></div>
                                 </div>
                             </div>
 
-                            <div v-else class="space-y-3">
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="text-xs text-gray-400">代號</label>
-                                        <input v-model="formData.code" @blur="fetchStockName" type="text" placeholder="代號" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white uppercase outline-none">
-                                    </div>
-                                    <div><label class="text-xs text-gray-400">名稱</label><input v-model="formData.name" type="text" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none"></div>
-                                </div>
-
-                                <div v-if="modalType === 'holdings'"><label class="text-xs text-gray-400">分類</label><select v-model="formData.type" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none"><option v-for="t in types" :value="t">{{ t }}</option></select></div>
-
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div><label class="text-xs text-gray-400">價格</label><input v-model.number="formData.price" type="number" min="0" step="0.01" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none"></div>
-                                    <div><label class="text-xs text-gray-400">股數</label><input v-model.number="formData.volume" type="number" min="1" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none"></div>
-                                </div>
-                                
-                                <div v-if="modalType === 'holdings'"><label class="text-xs text-gray-400">手續費</label><input v-model.number="formData.fee" type="number" min="0" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none"></div>
+                            <div v-if="modalType === 'gold'" class="grid grid-cols-2 gap-2">
+                                <div><label class="text-xs text-gray-400">重量(g)</label><input v-model.number="formData.weight" type="number" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"></div>
+                                <div><label class="text-xs text-gray-400">成本</label><input v-model.number="formData.cost" type="number" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"></div>
                             </div>
                         </div>
-
-                        <div class="flex gap-3 mt-6">
-                            <button @click="saveData" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold text-sm">儲存</button>
-                            <button @click="showModal = false" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold text-sm">取消</button>
-                        </div>
+                        <div class="flex gap-3 mt-6"><button @click="handleModalSubmit" class="flex-1 py-2 rounded font-bold text-sm text-white" :class="modalMode==='sell'?'bg-red-600 hover:bg-red-500':'bg-blue-600 hover:bg-blue-500'">{{ modalMode==='sell'?'確認賣出':'儲存' }}</button><button @click="showModal=false" class="flex-1 bg-gray-700 text-white py-2 rounded font-bold text-sm">取消</button></div>
                     </div>
                 </div>
             </transition>
@@ -417,13 +328,8 @@
             <transition name="modal">
                 <div v-if="showDeleteModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
                     <div class="bg-gray-900 border border-red-900/50 rounded-xl p-6 w-80 shadow-2xl text-center">
-                        <div class="text-4xl mb-3">⚠️</div>
-                        <h3 class="text-lg font-bold text-white mb-2">確定刪除?</h3>
-                        <p class="text-gray-400 text-sm mb-6">此動作無法復原，您確定要移除這筆資料嗎？</p>
-                        <div class="flex gap-3">
-                            <button @click="executeDelete" class="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded font-bold text-sm">刪除</button>
-                            <button @click="showDeleteModal = false" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold text-sm">取消</button>
-                        </div>
+                        <h3 class="text-lg font-bold text-white mb-4">確定刪除?</h3>
+                        <div class="flex gap-3"><button @click="executeDelete" class="flex-1 bg-red-600 text-white py-2 rounded">刪除</button><button @click="showDeleteModal=false" class="flex-1 bg-gray-700 text-white py-2 rounded">取消</button></div>
                     </div>
                 </div>
             </transition>
@@ -436,7 +342,8 @@
 
         createApp({
             setup() {
-                const currentTab = ref('dashboard'); // 預設顯示 Dashboard
+                const currentTab = ref('dashboard');
+                const historyFilter = ref('all'); // all, tw, us
                 const currentTime = ref('');
                 const loadingPrices = ref(false);
                 const types = ['現股', '融資', '融券', '當沖', '期貨', '定期定額', '借券'];
@@ -447,16 +354,16 @@
                 const goldList = ref([]);
                 const expandedSet = ref(new Set());
 
-                // Modal Refs
                 const showModal = ref(false);
-                const showDeleteModal = ref(false); // 新增刪除 Modal 狀態
-                const deleteTarget = ref(null); // 暫存刪除目標
+                const showDeleteModal = ref(false);
+                const deleteTarget = ref(null);
                 const modalMode = ref('add');
                 const modalType = ref('holdings'); 
                 const editingId = ref(null);
+                const editingLotIndex = ref(null);
+                const editingStock = ref(null);
                 const formData = ref({});
 
-                // Firebase Sync
                 const initFirebaseSync = () => {
                     const { onSnapshot, collection, query, orderBy } = window.firebaseOps;
                     if(!window.db) return;
@@ -468,140 +375,144 @@
 
                 const normalize = (str) => String(str || '').trim().toUpperCase().replace(/\.TW(O)?$/,'');
                 const toggleExpand = (id) => { if (expandedSet.value.has(id)) expandedSet.value.delete(id); else expandedSet.value.add(id); };
-
-                // Computed
-                const sortedHoldings = computed(() => [...holdings.value].sort((a, b) => normalize(a.code).localeCompare(normalize(b.code))));
-                const totalGoldWeight = computed(() => goldList.value.reduce((a, b) => a + (b.weight || 0), 0));
-                const totalGoldCost = computed(() => goldList.value.reduce((a, b) => a + (b.cost || 0), 0));
                 
-                // Assets
+                // Navigation Helper
+                const switchTab = (tab, filter = null) => {
+                    currentTab.value = tab;
+                    if (filter) historyFilter.value = filter;
+                };
+
+                // Computed: Holdings
+                const sortedHoldings = computed(() => [...holdings.value].sort((a, b) => normalize(a.code).localeCompare(normalize(b.code))));
                 const totalAssets = computed(() => holdings.value.reduce((a, b) => a + (b.currentPrice * b.volume), 0));
                 const totalUnrealizedPL = computed(() => holdings.value.reduce((a, b) => a + ((b.currentPrice * b.volume) - (b.cost * b.volume)), 0));
                 const totalUnrealizedPLRate = computed(() => { const c = holdings.value.reduce((a, b) => a + (b.cost * b.volume), 0); return c ? totalUnrealizedPL.value / c : 0; });
-                const totalRealizedPL = computed(() => history.value.reduce((a, b) => a + (b.netPL||0), 0));
-                const annualROI = computed(() => totalRealizedPL.value / 5000000);
-
                 const totalUSAssets = computed(() => usHoldings.value.reduce((a, b) => a + (b.currentPrice * b.volume), 0));
                 const totalUSUnrealizedPL = computed(() => usHoldings.value.reduce((a, b) => a + ((b.currentPrice - b.cost) * b.volume), 0));
                 const totalUSUnrealizedRate = computed(() => { const c = usHoldings.value.reduce((a, b) => a + (b.cost * b.volume), 0); return c ? totalUSUnrealizedPL.value / c : 0; });
+                
+                // Computed: History (Split & Grouping)
+                const twHistory = computed(() => history.value.filter(r => r.type !== '美股'));
+                const usHistory = computed(() => history.value.filter(r => r.type === '美股'));
+                
+                const filteredHistory = computed(() => {
+                    if (historyFilter.value === 'tw') return twHistory.value;
+                    if (historyFilter.value === 'us') return usHistory.value;
+                    return history.value;
+                });
 
-                // Grand Total (台股 + 美股換算30匯率 + 黃金)
-                const grandTotalAssets = computed(() => totalAssets.value + (totalUSAssets.value * 32) + totalGoldCost.value); // 暫定匯率 32
+                const totalRealizedPL = computed(() => history.value.reduce((a, b) => a + (b.netPL||0), 0)); // Global
+                const totalTwRealizedPL = computed(() => twHistory.value.reduce((a, b) => a + (b.netPL||0), 0));
+                const totalUsRealizedPL = computed(() => usHistory.value.reduce((a, b) => a + (b.netPL||0), 0));
+                const currentFilteredTotalPL = computed(() => filteredHistory.value.reduce((a, b) => a + (b.netPL||0), 0));
+
+                const groupedHistory = computed(() => {
+                    const groups = {};
+                    filteredHistory.value.forEach(item => {
+                        const month = item.date.substring(0, 7); // YYYY-MM
+                        if (!groups[month]) groups[month] = { monthTotal: 0, items: [] };
+                        groups[month].items.push(item);
+                        groups[month].monthTotal += (item.netPL || 0);
+                    });
+                    // Sort keys desc
+                    return Object.keys(groups).sort().reverse().reduce((obj, key) => {
+                        obj[key] = groups[key];
+                        return obj;
+                    }, {});
+                });
+
+                const annualROI = computed(() => totalRealizedPL.value / 5000000);
+                const totalGoldWeight = computed(() => goldList.value.reduce((a, b) => a + (b.weight || 0), 0));
+                const totalGoldCost = computed(() => goldList.value.reduce((a, b) => a + (b.cost || 0), 0));
+                const grandTotalAssets = computed(() => totalAssets.value + (totalUSAssets.value * 32) + totalGoldCost.value);
+                const modalTypeLabel = computed(() => modalType.value==='gold'?'黃金':(modalType.value==='us_stocks'?'美股':(modalType.value==='history'?'紀錄':'台股')));
 
                 // Functions
-                const saveData = async () => {
+                const handleModalSubmit = async () => {
                     const { addDoc, updateDoc, collection, doc } = window.firebaseOps;
                     const colName = modalType.value === 'us_stocks' ? 'us_holdings' : modalType.value;
                     let data = { ...formData.value };
 
-                    if (data.price < 0 || data.cost < 0) { alert('價格不能為負數！'); return; }
+                    if (modalMode.value === 'sell') {
+                        // Sell Logic
+                        const isTw = modalType.value === 'holdings';
+                        const tax = isTw ? Math.floor(data.price * data.volume * 0.003) : 0;
+                        const fee = isTw ? Math.floor(data.price * data.volume * 0.001425) : 0;
+                        const netPL = Math.floor((data.price - editingStock.value.cost) * data.volume - tax - fee);
+                        
+                        await addDoc(collection(window.db, 'history'), {
+                            date: data.date, code: editingStock.value.code, name: editingStock.value.name,
+                            type: isTw ? '台股' : '美股', price: data.price, volume: data.volume,
+                            fee, tax, netPL, roi: 0 
+                        });
 
-                    if (colName === 'gold') {
-                        data.weight = Math.max(1, Math.round(data.weight)); 
-                        if(modalMode.value === 'add') await addDoc(collection(window.db, 'gold'), data);
-                        else await updateDoc(doc(window.db, 'gold', editingId.value), data);
+                        // FIFO Logic
+                        let remain = data.volume;
+                        let newLots = [...(editingStock.value.lots||[])];
+                        while(remain > 0 && newLots.length > 0) {
+                            if(newLots[0].volume <= remain) { remain -= newLots[0].volume; newLots.shift(); }
+                            else { newLots[0].volume -= remain; remain=0; }
+                        }
+                        const newVol = editingStock.value.volume - data.volume;
+                        if(newVol <= 0) await window.firebaseOps.deleteDoc(doc(window.db, colName, editingStock.value.id));
+                        else await updateDoc(doc(window.db, colName, editingStock.value.id), { volume: newVol, lots: newLots });
                         showModal.value = false;
                         return;
                     }
 
-                    data.price = Number(data.price) || 0;
-                    data.volume = Number(data.volume) || 0;
-                    data.code = normalize(data.code);
-                    if (!data.name) data.name = data.code;
+                    // Edit Lot Logic
+                    if (modalMode.value === 'edit_lot') {
+                        let newLots = [...editingStock.value.lots];
+                        newLots[editingLotIndex.value] = { date: data.date, price: Number(data.price), volume: Number(data.volume), fee: Number(data.fee||0) };
+                        let nv=0, nc=0;
+                        newLots.forEach(l => { nv+=l.volume; nc+=(l.price*l.volume); });
+                        await updateDoc(doc(window.db, colName, editingStock.value.id), { lots: newLots, volume: nv, cost: nv>0?nc/nv:0 });
+                        showModal.value = false;
+                        return;
+                    }
 
-                    if (colName === 'holdings' || colName === 'us_holdings') {
-                        const newLot = { date: data.date, price: data.price, volume: data.volume, fee: data.fee || 0 };
-                        if (modalMode.value === 'add') {
-                            const list = colName === 'holdings' ? holdings.value : usHoldings.value;
-                            const existing = list.find(h => normalize(h.code) === data.code && (colName === 'us_holdings' || normalize(h.type) === normalize(data.type)));
-                            if (existing) {
-                                const oldVol = Number(existing.volume);
-                                const newVol = Number(data.volume);
-                                const avgCost = ((Number(existing.cost) * oldVol) + (data.price * newVol)) / (oldVol + newVol);
-                                await updateDoc(doc(window.db, colName, existing.id), { volume: oldVol + newVol, cost: avgCost, lots: [...(existing.lots || []), newLot] });
-                            } else {
-                                data.cost = data.price; data.currentPrice = data.price; data.lots = [newLot]; delete data.price;
-                                await addDoc(collection(window.db, colName), data);
-                            }
-                        } else { await updateDoc(doc(window.db, colName, editingId.value), data); }
-                    } else {
-                        if(modalMode.value === 'add') await addDoc(collection(window.db, colName), data);
+                    // Add/Edit Logic
+                    data.price = Number(data.price)||0; data.volume = Number(data.volume)||0;
+                    if(colName!=='gold' && colName!=='history') { data.code = normalize(data.code); if(!data.name) data.name=data.code; }
+
+                    if(colName === 'gold' || colName === 'history') {
+                        if(modalMode.value==='add') await addDoc(collection(window.db, colName), data);
                         else await updateDoc(doc(window.db, colName, editingId.value), data);
+                    } else {
+                        const newLot = { date: data.date, price: data.price, volume: data.volume, fee: data.fee||0 };
+                        if(modalMode.value === 'add') {
+                            const list = colName==='holdings'?holdings.value:usHoldings.value;
+                            const ex = list.find(h => normalize(h.code)===data.code && (colName==='us_holdings' || normalize(h.type)===normalize(data.type)));
+                            if(ex) {
+                                const ov=Number(ex.volume), nv=Number(data.volume);
+                                await updateDoc(doc(window.db, colName, ex.id), { volume: ov+nv, cost: ((ex.cost*ov)+(data.price*nv))/(ov+nv), lots: [...(ex.lots||[]), newLot] });
+                            } else {
+                                await addDoc(collection(window.db, colName), { ...data, cost: data.price, currentPrice: data.price, lots: [newLot] });
+                            }
+                        } else await updateDoc(doc(window.db, colName, editingId.value), data);
                     }
                     showModal.value = false;
                 };
 
-                const refreshPrices = async (target) => {
-                    loadingPrices.value = true;
-                    const list = target === 'us' ? usHoldings.value : holdings.value;
-                    const collectionName = target === 'us' ? 'us_holdings' : 'holdings';
-                    const symbols = [...new Set(list.map(h => h.code))];
-                    if(symbols.length === 0) { loadingPrices.value = false; return; }
-                    try {
-                        const res = await fetch(`/api/quote?symbols=${symbols.join(',')}`);
-                        if(!res.ok) throw new Error();
-                        const data = await res.json();
-                        const { updateDoc, doc } = window.firebaseOps;
-                        for (const stock of list) {
-                            const key = normalize(stock.code);
-                            const stockData = data[key] || data[`${key}.TW`]; 
-                            if (stockData && stockData.price) await updateDoc(doc(window.db, collectionName, stock.id), { currentPrice: stockData.price });
-                        }
-                    } catch (e) { alert("更新失敗"); }
-                    loadingPrices.value = false;
-                };
-
-                const fetchStockName = async () => {
-                    const code = formData.value.code;
-                    if (!code) return;
-                    try {
-                        const res = await fetch(`/api/quote?symbols=${code}`);
-                        const data = await res.json();
-                        const key = normalize(code);
-                        const stockData = data[key] || data[`${key}.TW`]; 
-                        if (stockData && stockData.name) {
-                            formData.value.name = stockData.name;
-                            if (modalMode.value === 'add' && !formData.value.price) formData.value.price = stockData.price;
-                        }
-                    } catch (e) {}
-                };
-
-                // UI Actions
-                const openModal = (type) => { 
-                    modalType.value = type; modalMode.value = 'add'; 
-                    formData.value = { date: new Date().toISOString().split('T')[0], type: '現股', price: 0, volume: type==='us_stocks'?1:1000, weight: 1, cost: 0 }; 
-                    showModal.value = true; 
-                };
-                const editItem = (type, item) => { 
-                    modalType.value = type; modalMode.value = 'edit'; editingId.value = item.id; 
-                    formData.value = { ...item }; 
-                    if(type.includes('holdings')) formData.value.price = item.cost; 
-                    showModal.value = true; 
-                };
+                // Shared Helpers
+                const openModal = (type) => { modalType.value = type; modalMode.value = 'add'; formData.value = { date: new Date().toISOString().split('T')[0], type: '現股', price: 0, volume: 1000, weight: 1, cost: 0 }; showModal.value = true; };
+                const openSellModal = (stock) => { modalType.value = currentTab.value; modalMode.value = 'sell'; editingStock.value = stock; formData.value = { date: new Date().toISOString().split('T')[0], price: stock.currentPrice, volume: stock.volume, code: stock.code, name: stock.name }; showModal.value = true; };
+                const openEditLotModal = (stock, idx) => { modalType.value = currentTab.value; modalMode.value = 'edit_lot'; editingStock.value = stock; editingLotIndex.value = idx; const lot = stock.lots[idx]; formData.value = { ...lot }; showModal.value = true; };
+                const editItem = (type, item) => { modalType.value = type; modalMode.value = 'edit'; editingId.value = item.id; formData.value = { ...item }; if(type.includes('holdings')) formData.value.price = item.cost; showModal.value = true; };
+                const confirmDelete = (type, id) => { deleteTarget.value = { col: type==='us_stocks'?'us_holdings':type, id }; showDeleteModal.value = true; };
+                const executeDelete = async () => { await window.firebaseOps.deleteDoc(window.firebaseOps.doc(window.db, deleteTarget.value.col, deleteTarget.value.id)); showDeleteModal.value = false; };
+                const deleteLot = async (stock, idx) => { if(!confirm('刪除?')) return; const col = currentTab.value==='us_stocks'?'us_holdings':'holdings'; let lots=[...stock.lots]; lots.splice(idx,1); let nv=0, nc=0; lots.forEach(l=>{nv+=l.volume;nc+=(l.price*l.volume)}); if(nv<=0) await window.firebaseOps.deleteDoc(window.firebaseOps.doc(window.db, col, stock.id)); else await window.firebaseOps.updateDoc(window.firebaseOps.doc(window.db, col, stock.id), {lots, volume:nv, cost:nc/nv}); };
+                const refreshPrices = async (t) => { loadingPrices.value=true; const l=t==='us'?usHoldings.value:holdings.value; const s=[...new Set(l.map(h=>h.code))]; if(s.length>0) { try{const r=await fetch(`/api/quote?symbols=${s.join(',')}`); const d=await r.json(); const {updateDoc,doc}=window.firebaseOps; for(const x of l){const k=normalize(x.code); const v=d[k]||d[`${k}.TW`]; if(v&&v.price) await updateDoc(doc(window.db,t==='us'?'us_holdings':'holdings',x.id),{currentPrice:v.price});}}catch(e){}} loadingPrices.value=false; };
+                const fetchStockName = async () => { const c=formData.value.code; if(!c) return; try{const r=await fetch(`/api/quote?symbols=${c}`);const d=await r.json(); const k=normalize(c); const v=d[k]||d[`${k}.TW`]; if(v&&v.name){ formData.value.name=v.name; if(modalMode.value==='add') formData.value.price=v.price; }}catch(e){} };
                 
-                // Delete Logic (With Modal)
-                const confirmDelete = (type, id) => {
-                    const col = type === 'us_stocks' ? 'us_holdings' : type;
-                    deleteTarget.value = { col, id };
-                    showDeleteModal.value = true;
-                };
-                const executeDelete = async () => {
-                    if (deleteTarget.value) {
-                        await window.firebaseOps.deleteDoc(window.firebaseOps.doc(window.db, deleteTarget.value.col, deleteTarget.value.id));
-                        showDeleteModal.value = false;
-                        deleteTarget.value = null;
-                    }
-                };
-
-                const getTabClass = (tab) => currentTab.value === tab ? 'bg-gray-800 text-white shadow' : 'text-gray-400 hover:bg-gray-800/50';
+                const getTabClass = (t) => currentTab.value === t ? 'bg-gray-800 text-white shadow-lg border-r-4 border-blue-500' : 'text-gray-400 hover:bg-gray-800/50 hover:text-white';
                 const formatCurrency = (v) => new Intl.NumberFormat('zh-TW', {style:'currency', currency:'TWD', minimumFractionDigits:0}).format(v||0);
                 const formatNumber = (v) => new Intl.NumberFormat('zh-TW').format(v||0);
                 const formatPrice = (v) => new Intl.NumberFormat('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v||0);
                 const formatPercent = (v) => ((v||0) * 100).toFixed(2) + '%';
                 const getColorClass = (v) => v > 0 ? 'text-up' : (v < 0 ? 'text-down' : 'text-gray-400');
                 const getPriceColor = (s) => s.currentPrice > s.cost ? 'text-up' : (s.currentPrice < s.cost ? 'text-down' : 'text-white');
-                const getTypeBadge = (t) => { const m = {'現股':'border-blue-800 text-blue-400', '融資':'border-orange-800 text-orange-400', '期貨':'border-red-800 text-red-400'}; return m[t] ? `bg-${m[t].split(' ')[0].replace('border-','')} ${m[t]}` : 'bg-gray-800 text-gray-300'; };
-                
+                const getTypeBadge = (t) => { const m = {'現股':'border-blue-800 text-blue-400', '融資':'border-orange-800 text-orange-400', '期貨':'border-red-800 text-red-400', '美股':'border-indigo-800 text-indigo-400'}; return m[t] ? `bg-${m[t].split(' ')[0].replace('border-','')} ${m[t]}` : 'bg-gray-800 text-gray-300'; };
                 const calculateUnrealizedPL = (s) => (s.currentPrice * s.volume) - (s.cost * s.volume);
                 const calculateUnrealizedRate = (s) => s.cost ? (s.currentPrice - s.cost) / s.cost : 0;
 
@@ -612,13 +523,13 @@
                 });
 
                 return { 
-                    currentTab, currentTime, holdings, usHoldings, sortedHoldings, history, goldList, 
-                    showModal, modalMode, modalType, formData, types, 
-                    showDeleteModal, confirmDelete, executeDelete, // Delete Modal
-                    totalAssets, totalUnrealizedPL, totalUnrealizedPLRate, totalRealizedPL, annualROI, grandTotalAssets,
-                    totalUSAssets, totalUSUnrealizedPL, totalUSUnrealizedRate, totalGoldWeight, totalGoldCost,
-                    loadingPrices, expandedSet,
-                    openModal, editItem, saveData, refreshPrices, fetchStockName, toggleExpand, getTabClass,
+                    currentTab, historyFilter, currentTime, holdings, usHoldings, sortedHoldings, history, goldList, 
+                    showModal, showDeleteModal, modalMode, modalType, formData, types, modalTypeLabel,
+                    totalAssets, totalUnrealizedPL, totalUnrealizedPLRate, totalRealizedPL, totalTwRealizedPL, totalUsRealizedPL, currentFilteredTotalPL,
+                    annualROI, grandTotalAssets, totalUSAssets, totalUSUnrealizedPL, totalUSUnrealizedRate, totalGoldWeight, totalGoldCost,
+                    loadingPrices, expandedSet, groupedHistory, twHistory, usHistory, filteredHistory,
+                    openModal, editItem, confirmDelete, executeDelete, handleModalSubmit, openSellModal, openEditLotModal, deleteLot,
+                    switchTab, refreshPrices, fetchStockName, toggleExpand, getTabClass,
                     formatCurrency, formatNumber, formatPrice, formatPercent, getColorClass, getPriceColor, getTypeBadge, calculateUnrealizedPL, calculateUnrealizedRate 
                 };
             }
