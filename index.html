@@ -14,22 +14,23 @@
 
         async function initApp() {
             try {
-                // 1. 抓取環境變數
+                // 先嘗試從後端抓設定
                 const res = await fetch('/api/config');
-                if (!res.ok) throw new Error('無法讀取設定');
+                if (!res.ok) throw new Error('API_CONFIG_FAIL');
                 const firebaseConfig = await res.json();
 
-                // 2. 初始化
+                // 初始化
                 const app = initializeApp(firebaseConfig);
                 window.db = getFirestore(app);
                 window.firebaseOps = { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp };
                 
-                // 3. 發送就緒訊號
+                // 通知 Vue
                 window.dispatchEvent(new Event('firebase-ready'));
                 console.log("Firebase initialized");
             } catch (e) {
                 console.error("Init Error:", e);
-                alert("系統提示：無法讀取環境變數，請確認 Vercel 設定或 api/config.js 是否正確。");
+                // 為了避免卡死，如果是 API 失敗，您可以選擇在這裡放入備用的寫死 Config (選用)
+                alert("⚠️ 連線警示：無法讀取後端設定 (API 404)。\n請確認 Vercel 的 package.json 是否已修復。");
             }
         }
         initApp();
@@ -298,7 +299,6 @@
                         const res = await fetch(`/api/quote?symbols=${code}`);
                         const data = await res.json();
                         const key = code.toUpperCase();
-                        // 嘗試匹配
                         const stockData = data[key] || data[`${key}.TW`]; 
                         if (stockData && stockData.name) {
                             formData.value.name = stockData.name;
@@ -324,23 +324,27 @@
                                 await updateDoc(doc(window.db, "holdings", stock.id), { currentPrice: stockData.price, name: stockData.name || stock.name });
                             }
                         }
-                    } catch (e) { alert("⚠️ 更新失敗，請檢查 API"); }
+                    } catch (e) { alert("⚠️ 更新失敗：請先確認 package.json 錯誤已修正，並重新部署。"); }
                     loadingPrices.value = false;
                 };
 
-                // ★★★ 核心修正：儲存邏輯 (超級寬容比對模式) ★★★
+                // ★★★ 核心修正：正規化輔助函式 (解決比對不到的問題) ★★★
+                const normalize = (str) => {
+                    if (!str) return '';
+                    // 轉字串 -> 去空白 -> 轉大寫 -> 移除 .TW/.TWO 後綴
+                    return String(str).trim().toUpperCase().replace('.TW', '').replace('.TWO', '');
+                };
+
+                // ★★★ 儲存邏輯 (合併修正版) ★★★
                 const saveData = async () => {
                     const { addDoc, updateDoc, collection, doc } = window.firebaseOps;
                     const colName = modalType.value;
                     let data = { ...formData.value };
 
-                    // 1. 資料清洗
                     data.price = Number(data.price) || 0;
                     data.volume = Number(data.volume) || 0;
-                    // 強制轉大寫並移除空白，確保格式統一
-                    const normalizedInputCode = String(data.code || '').trim().toUpperCase();
-                    data.code = normalizedInputCode;
-
+                    // 統一儲存格式
+                    data.code = normalize(data.code);
                     if (!data.name) data.name = data.code;
 
                     if (colName === 'holdings') {
@@ -349,17 +353,20 @@
                         delete data.price;
 
                         if (modalMode.value === 'add') {
-                            // ★★★ 比對邏輯：強制轉字串、去空白、轉大寫，再比對 ★★★
+                            // ★ 使用新的 normalize 進行超級寬容比對 ★
+                            const inputCode = normalize(data.code);
+                            const inputType = normalize(data.type);
+
                             const existing = holdings.value.find(h => {
-                                const dbCode = String(h.code || '').trim().toUpperCase();
-                                return dbCode === normalizedInputCode && h.type === data.type;
+                                const dbCode = normalize(h.code);
+                                const dbType = normalize(h.type);
+                                return dbCode === inputCode && dbType === inputType;
                             });
 
                             if (existing) {
                                 // 執行合併
                                 const oldVol = Number(existing.volume);
                                 const newVol = Number(data.volume);
-                                // 加權平均成本
                                 const avgCost = ((Number(existing.cost) * oldVol) + (data.cost * newVol)) / (oldVol + newVol);
                                 
                                 await updateDoc(doc(window.db, colName, existing.id), { 
@@ -369,16 +376,13 @@
                                 });
                                 alert(`✅ 合併成功！\n已將 ${newVol} 股併入現有持股。\n新平均成本: ${avgCost.toFixed(2)}`);
                             } else {
-                                // 新增
                                 await addDoc(collection(window.db, colName), data);
-                                alert(`✅ 新增成功！\n已建立新持股: ${data.name}`);
                             }
                         } else {
-                            // 編輯模式
                             await updateDoc(doc(window.db, colName, editingId.value), data);
                         }
                     } else {
-                        // History 模式 (不合併)
+                        // History
                         data.fee = Number(data.fee)||0; data.tax = Number(data.tax)||0; data.netPL = Number(data.netPL)||0; data.roi = Number(data.roi)||0;
                         if (modalMode.value === 'add') await addDoc(collection(window.db, colName), data);
                         else await updateDoc(doc(window.db, colName, editingId.value), data);
@@ -392,7 +396,6 @@
                 const deleteItem = async (type, id) => { if(confirm('確定刪除?')) await window.firebaseOps.deleteDoc(window.firebaseOps.doc(window.db, type, id)); };
                 const autoCalculate = () => { const p = formData.value.price; const v = formData.value.volume; formData.value.fee = Math.floor(p*v*0.001425); formData.value.tax = Math.floor(p*v*0.003); alert('已填入費用'); };
                 
-                // Formatter & Colors
                 const formatCurrency = (v) => new Intl.NumberFormat('zh-TW', {style:'currency', currency:'TWD', minimumFractionDigits:0}).format(v||0);
                 const formatNumber = (v) => new Intl.NumberFormat('zh-TW').format(v||0);
                 const formatPercent = (v) => ((v||0) * 100).toFixed(2) + '%';
