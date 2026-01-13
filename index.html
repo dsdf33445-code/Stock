@@ -11,7 +11,7 @@
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } 
         from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // ★★★ 請在此填入您的 Firebase 設定 ★★★
+        // ★★★ 請在此填入您的 Firebase 設定 (從您原本的檔案複製過來) ★★★
         const firebaseConfig = {
   	apiKey: "AIzaSyCV5sUAZz5Lo226gv2ryuJeCLlnRC5KQrY",
   	authDomain: "stock-12290.firebaseapp.com",
@@ -23,7 +23,7 @@
 	};
 
         const app = initializeApp(firebaseConfig);
-        window.db = getFirestore(app); // 直接初始化 db
+        window.db = getFirestore(app);
         window.firebaseOps = { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp };
     </script>
 
@@ -34,7 +34,12 @@
             theme: {
                 extend: {
                     fontFamily: { sans: ['Inter'], mono: ['JetBrains Mono'] },
-                    colors: { gray: { 850: '#1f2937', 900: '#111827', 950: '#0b0f19' }, up: '#ef4444', down: '#22c55e' }
+                    colors: {
+                        gray: { 850: '#1f2937', 900: '#111827', 950: '#0b0f19' },
+                        // 強制定義紅漲綠跌 (台股標準)
+                        up: '#ef4444',   // 紅色 (獲利/上漲)
+                        down: '#22c55e', // 綠色 (虧損/下跌)
+                    }
                 }
             }
         }
@@ -92,6 +97,7 @@
             </header>
 
             <div class="flex-1 overflow-auto p-6 relative">
+                
                 <div v-if="currentTab === 'dashboard' || currentTab === 'holdings'" class="mb-10">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-white flex items-center gap-3">
@@ -105,40 +111,44 @@
                             + 新增持股
                         </button>
                     </div>
+
                     <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl">
                         <table class="w-full text-sm text-left">
                             <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
                                 <tr>
-                                    <th class="px-4 py-3">操作</th>
-                                    <th class="px-4 py-3">代號/名稱</th>
+                                    <th class="px-4 py-3">分類</th>
+                                    <th class="px-4 py-3">名稱(代號)</th>
                                     <th class="px-4 py-3 text-right">成本</th>
                                     <th class="px-4 py-3 text-right">現價</th>
                                     <th class="px-4 py-3 text-right">股數</th>
                                     <th class="px-4 py-3 text-right">損益</th>
                                     <th class="px-4 py-3 text-right">%</th>
-                                </tr>
+                                    <th class="px-4 py-3 text-right">操作</th> </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-800">
-                                <tr v-for="stock in holdings" :key="stock.id" class="hover:bg-gray-800/50">
-                                    <td class="px-4 py-3 flex gap-2">
-                                        <button @click="editItem('holdings', stock)" class="text-gray-500 hover:text-blue-400">✎</button>
-                                        <button @click="deleteItem('holdings', stock.id)" class="text-gray-500 hover:text-red-400">✕</button>
+                                <tr v-for="stock in holdings" :key="stock.id" class="hover:bg-gray-800/50 group">
+                                    <td class="px-4 py-3">
+                                        <span :class="getTypeBadge(stock.type)" class="px-2 py-0.5 rounded text-xs border font-normal">{{ stock.type }}</span>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <div class="font-bold text-white flex items-center gap-2">
-                                            {{ stock.code }} 
-                                            <span :class="getTypeBadge(stock.type)" class="text-[10px] px-1 rounded border font-normal">{{ stock.type }}</span>
+                                        <div class="font-bold text-white text-base">
+                                            {{ stock.name }}<span class="text-gray-400 text-sm font-normal ml-1">({{ stock.code }})</span>
                                         </div>
-                                        <div class="text-gray-500 text-xs">{{ stock.name }}</div>
                                     </td>
-                                    <td class="px-4 py-3 text-right number-font">{{ formatNumber(stock.cost) }}</td>
-                                    <td class="px-4 py-3 text-right number-font font-bold" :class="getPriceColor(stock)">{{ formatNumber(stock.currentPrice) }}</td>
-                                    <td class="px-4 py-3 text-right number-font">{{ formatNumber(stock.volume) }}</td>
+                                    <td class="px-4 py-3 text-right number-font text-gray-300">{{ formatNumber(stock.cost) }}</td>
+                                    <td class="px-4 py-3 text-right number-font font-bold" :class="getPriceColor(stock)">
+                                        {{ formatNumber(stock.currentPrice) }}
+                                    </td>
+                                    <td class="px-4 py-3 text-right number-font text-gray-300">{{ formatNumber(stock.volume) }}</td>
                                     <td class="px-4 py-3 text-right number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">
                                         {{ formatCurrency(calculateUnrealizedPL(stock)) }}
                                     </td>
                                     <td class="px-4 py-3 text-right number-font font-bold" :class="getColorClass(calculateUnrealizedPL(stock))">
                                         {{ formatPercent(calculateUnrealizedRate(stock)) }}
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        <button @click="editItem('holdings', stock)" class="text-gray-500 hover:text-blue-400 mr-3 transition">✎</button>
+                                        <button @click="deleteItem('holdings', stock.id)" class="text-gray-500 hover:text-red-400 transition">✕</button>
                                     </td>
                                 </tr>
                             </tbody>
@@ -159,26 +169,27 @@
                         <table class="w-full text-sm text-left">
                             <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
                                 <tr>
-                                    <th class="px-4 py-3">操作</th>
                                     <th class="px-4 py-3">日期</th>
-                                    <th class="px-4 py-3">代號/名稱</th>
+                                    <th class="px-4 py-3">名稱(代號)</th>
                                     <th class="px-4 py-3 text-right">獲利</th>
                                     <th class="px-4 py-3 text-right">%</th>
+                                    <th class="px-4 py-3 text-right">操作</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-800">
                                 <tr v-for="record in history" :key="record.id" class="hover:bg-gray-800/50">
-                                    <td class="px-4 py-3 flex gap-2">
-                                        <button @click="editItem('history', record)" class="text-gray-500 hover:text-blue-400">✎</button>
-                                        <button @click="deleteItem('history', record.id)" class="text-gray-500 hover:text-red-400">✕</button>
-                                    </td>
                                     <td class="px-4 py-3 text-gray-400 number-font text-xs">{{ record.date }}</td>
                                     <td class="px-4 py-3">
-                                        <span class="font-bold text-white">{{ record.code }}</span>
-                                        <span class="text-gray-500 text-xs ml-1">{{ record.name }}</span>
+                                        <span class="font-bold text-white">{{ record.name }}</span>
+                                        <span class="text-gray-500 text-xs ml-1">({{ record.code }})</span>
+                                        <span :class="getTypeBadge(record.type)" class="ml-2 text-[10px] px-1 rounded border">{{ record.type }}</span>
                                     </td>
                                     <td class="px-4 py-3 text-right number-font font-bold" :class="getColorClass(record.netPL)">{{ formatCurrency(record.netPL) }}</td>
                                     <td class="px-4 py-3 text-right number-font font-bold" :class="getColorClass(record.netPL)">{{ formatPercent(record.roi) }}</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <button @click="editItem('history', record)" class="text-gray-500 hover:text-blue-400 mr-3">✎</button>
+                                        <button @click="deleteItem('history', record.id)" class="text-gray-500 hover:text-red-400">✕</button>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -194,15 +205,15 @@
                         <div class="space-y-3">
                             <div v-if="modalType === 'history'">
                                 <label class="text-xs text-gray-400">日期</label>
-                                <input v-model="formData.date" type="date" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white">
+                                <input v-model="formData.date" type="date" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-blue-500">
                             </div>
                             
                             <div>
                                 <label class="text-xs text-gray-400">股票代號</label>
                                 <div class="flex gap-2">
                                     <input v-model="formData.code" @blur="fetchStockName" type="text" placeholder="ex: 2330" class="flex-1 bg-gray-800 border border-gray-700 rounded p-2 text-white uppercase focus:border-blue-500 outline-none">
-                                    <button @click="fetchStockName" class="bg-gray-700 hover:bg-gray-600 px-3 rounded text-white text-xs">
-                                        <span v-if="fetchingName">...</span>
+                                    <button @click="fetchStockName" class="bg-gray-700 hover:bg-gray-600 px-3 rounded text-white text-xs border border-gray-600">
+                                        <span v-if="fetchingName" class="animate-spin block">⟳</span>
                                         <span v-else>🔍</span>
                                     </button>
                                 </div>
@@ -210,12 +221,12 @@
                             
                             <div>
                                 <label class="text-xs text-gray-400">股票名稱</label>
-                                <input v-model="formData.name" type="text" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none">
+                                <input v-model="formData.name" type="text" placeholder="自動帶入或手動輸入" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none">
                             </div>
 
                             <div>
                                 <label class="text-xs text-gray-400">分類</label>
-                                <select v-model="formData.type" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white">
+                                <select v-model="formData.type" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none">
                                     <option v-for="t in types" :value="t">{{ t }}</option>
                                 </select>
                             </div>
@@ -223,30 +234,30 @@
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="text-xs text-gray-400">{{ modalType === 'holdings' ? '成本均價' : '成交價' }}</label>
-                                    <input v-model.number="formData.price" type="number" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white">
+                                    <input v-model.number="formData.price" type="number" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-blue-500">
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-400">股數</label>
-                                    <input v-model.number="formData.volume" type="number" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white">
+                                    <input v-model.number="formData.volume" type="number" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white outline-none focus:border-blue-500">
                                 </div>
                             </div>
 
                             <div v-if="modalType === 'history'" class="pt-2 border-t border-gray-800 space-y-2">
                                 <div class="grid grid-cols-2 gap-2">
-                                    <div><label class="text-xs text-gray-400">淨損益</label><input v-model.number="formData.netPL" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"></div>
+                                    <div><label class="text-xs text-gray-400">淨損益</label><input v-model.number="formData.netPL" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white font-bold"></div>
                                     <div><label class="text-xs text-gray-400">報酬率</label><input v-model.number="formData.roi" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white"></div>
                                 </div>
                                 <div class="grid grid-cols-2 gap-2 text-xs">
-                                    <div>手續費 <input v-model.number="formData.fee" class="bg-gray-800 w-full border border-gray-700 rounded p-1"></div>
-                                    <div>稅 <input v-model.number="formData.tax" class="bg-gray-800 w-full border border-gray-700 rounded p-1"></div>
+                                    <div>手續費 <input v-model.number="formData.fee" class="bg-gray-800 w-full border border-gray-700 rounded p-1 text-right"></div>
+                                    <div>稅 <input v-model.number="formData.tax" class="bg-gray-800 w-full border border-gray-700 rounded p-1 text-right"></div>
                                 </div>
-                                <button @click="autoCalculate" class="w-full text-xs text-blue-400 border border-blue-900 rounded py-1 hover:bg-blue-900/30">⚡ 試算 (賣出模式)</button>
+                                <button @click="autoCalculate" class="w-full text-xs text-blue-400 border border-blue-900 rounded py-1 hover:bg-blue-900/30">⚡ 試算費用 (賣出)</button>
                             </div>
                         </div>
 
                         <div class="flex gap-3 mt-6">
-                            <button @click="saveData" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold text-sm">儲存</button>
-                            <button @click="showModal = false" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold text-sm">取消</button>
+                            <button @click="saveData" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold text-sm transition">儲存</button>
+                            <button @click="showModal = false" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold text-sm transition">取消</button>
                         </div>
                     </div>
                 </div>
@@ -262,9 +273,8 @@
                 const currentTab = ref('dashboard');
                 const currentTime = ref('');
                 const loadingPrices = ref(false);
-                const fetchingName = ref(false); // 抓取代號狀態
+                const fetchingName = ref(false);
                 const types = ['現股', '融資', '融券', '當沖', '期貨', '定期定額', '借券'];
-
                 const holdings = ref([]);
                 const history = ref([]);
                 
@@ -274,69 +284,95 @@
                 const editingId = ref(null);
                 const formData = ref({});
 
-                // ----------------- Firebase Sync -----------------
+                // Firestore Sync
                 const initFirebaseSync = () => {
                     const { onSnapshot, collection, query, orderBy } = window.firebaseOps;
                     if(!window.db) return;
-
-                    // 監聽持股
-                    onSnapshot(collection(window.db, "holdings"), (snapshot) => {
-                        holdings.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    });
-
-                    // 監聽歷史
-                    const historyq = query(collection(window.db, "history"), orderBy("date", "desc"));
-                    onSnapshot(historyq, (snapshot) => {
-                        history.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    });
+                    onSnapshot(collection(window.db, "holdings"), (s) => holdings.value = s.docs.map(d => ({ id: d.id, ...d.data() })));
+                    onSnapshot(query(collection(window.db, "history"), orderBy("date", "desc")), (s) => history.value = s.docs.map(d => ({ id: d.id, ...d.data() })));
                 };
 
-                // ----------------- 功能邏輯 -----------------
-                
-                // 1. 自動抓股票名稱
+                // 自動抓取名稱
                 const fetchStockName = async () => {
                     const code = formData.value.code;
                     if (!code || code.length < 3) return;
                     
                     fetchingName.value = true;
                     try {
-                        // 呼叫我們的新後端 API
+                        // 嘗試呼叫 API
                         const res = await fetch(`/api/quote?symbols=${code}`);
+                        if (!res.ok) throw new Error("API_ERROR");
                         const data = await res.json();
                         
-                        // data[code] 可能要處理大小寫
-                        const stockData = data[code.toUpperCase()] || data[Object.keys(data)[0]];
+                        // 比對代號
+                        const key = code.toUpperCase();
+                        const stockData = data[key] || data[Object.keys(data)[0]]; // 抓取第一個結果
                         
                         if (stockData && stockData.name) {
                             formData.value.name = stockData.name;
-                            // 如果是新增模式且尚未填價格，順便填入現價
                             if (modalMode.value === 'add' && !formData.value.price) {
-                                formData.value.price = stockData.price; 
+                                formData.value.price = stockData.price;
                             }
                         }
                     } catch (e) {
-                        console.error("查無此股", e);
+                        console.error("無法抓取名稱", e);
+                        if(e.message === "API_ERROR") {
+                            alert("⚠️ 連線失敗：無法連接報價伺服器。\n請確認您的 Vercel 部署狀態 (404 Not Found)。");
+                        }
                     }
                     fetchingName.value = false;
                 };
 
-                // 2. 儲存資料 (修正不顯示的 Bug)
+                // 批量更新股價
+                const refreshPrices = async () => {
+                    loadingPrices.value = true;
+                    const symbols = [...new Set(holdings.value.map(h => h.code))];
+                    if(symbols.length === 0) { loadingPrices.value = false; return; }
+
+                    try {
+                        const res = await fetch(`/api/quote?symbols=${symbols.join(',')}`);
+                        if (!res.ok) throw new Error("API_ERROR");
+                        
+                        const data = await res.json();
+                        const { updateDoc, doc } = window.firebaseOps;
+                        
+                        let updatedCount = 0;
+                        for (const stock of holdings.value) {
+                            const key = stock.code.toUpperCase();
+                            // 後端現在會去掉 .TW，所以直接比對 key，或比對 .TW 版
+                            const stockData = data[key] || data[`${key}.TW`]; 
+                            
+                            if (stockData && stockData.price) {
+                                await updateDoc(doc(window.db, "holdings", stock.id), {
+                                    currentPrice: stockData.price,
+                                    name: stockData.name || stock.name 
+                                });
+                                updatedCount++;
+                            }
+                        }
+                        // 成功提示可選
+                        // console.log(`已更新 ${updatedCount} 檔股價`);
+                    } catch (e) {
+                        console.error("更新失敗", e);
+                        alert("⚠️ 更新失敗：後端 API 無回應 (404)。\n請檢查您的 Vercel 專案是否包含 api/quote.js 且結構正確。");
+                    }
+                    loadingPrices.value = false;
+                };
+
+                // 儲存邏輯
                 const saveData = async () => {
                     const { addDoc, updateDoc, collection, doc } = window.firebaseOps;
                     const colName = modalType.value;
                     let data = { ...formData.value };
 
-                    // 轉數值防止字串計算錯誤
                     data.price = Number(data.price) || 0;
                     data.volume = Number(data.volume) || 0;
-                    if (!data.name) data.name = data.code; // 防呆
+                    if (!data.name) data.name = data.code;
 
                     if (colName === 'holdings') {
-                        data.cost = data.price; 
-                        // ★★★ 關鍵修正：確保 currentPrice 有值，否則前端計算損益會是 NaN 導致不顯示 ★★★
-                        if (data.currentPrice === undefined || data.currentPrice === 0) {
-                            data.currentPrice = data.cost;
-                        }
+                        data.cost = data.price;
+                        // 確保現價有值，否則顯示異常
+                        if (!data.currentPrice) data.currentPrice = data.cost;
                         delete data.price;
                     } else {
                         data.fee = Number(data.fee) || 0;
@@ -345,54 +381,21 @@
                         data.roi = Number(data.roi) || 0;
                     }
 
-                    try {
-                        if (modalMode.value === 'add') {
-                            await addDoc(collection(window.db, colName), data);
-                        } else {
-                            await updateDoc(doc(window.db, colName, editingId.value), data);
-                        }
-                        showModal.value = false;
-                    } catch (e) {
-                        alert("儲存失敗: " + e.message);
+                    if (modalMode.value === 'add') {
+                        await addDoc(collection(window.db, colName), data);
+                    } else {
+                        await updateDoc(doc(window.db, colName, editingId.value), data);
                     }
+                    showModal.value = false;
                 };
 
-                // 3. 批量更新股價
-                const refreshPrices = async () => {
-                    loadingPrices.value = true;
-                    const symbols = [...new Set(holdings.value.map(h => h.code))];
-                    if(symbols.length === 0) { loadingPrices.value = false; return; }
-
-                    try {
-                        const res = await fetch(`/api/quote?symbols=${symbols.join(',')}`);
-                        const data = await res.json();
-                        const { updateDoc, doc } = window.firebaseOps;
-                        
-                        for (const stock of holdings.value) {
-                            const key = stock.code.toUpperCase();
-                            const stockData = data[key] || data[`${key}.TW`]; // 嘗試匹配
-                            
-                            if (stockData && stockData.price) {
-                                await updateDoc(doc(window.db, "holdings", stock.id), {
-                                    currentPrice: stockData.price,
-                                    name: stockData.name || stock.name // 順便更新名稱
-                                });
-                            }
-                        }
-                    } catch (e) {
-                        console.error("股價更新失敗", e);
-                    }
-                    loadingPrices.value = false;
-                };
-
-                // Modal 操作
+                // UI Helpers
                 const openModal = (type) => {
                     modalType.value = type;
                     modalMode.value = 'add';
                     formData.value = { date: new Date().toISOString().split('T')[0], type: '現股', price: 0, volume: 1000 };
                     showModal.value = true;
                 };
-
                 const editItem = (type, item) => {
                     modalType.value = type;
                     modalMode.value = 'edit';
@@ -401,11 +404,9 @@
                     if(type === 'holdings') formData.value.price = item.cost;
                     showModal.value = true;
                 };
-
                 const deleteItem = async (type, id) => {
                     if(confirm('確定刪除?')) await window.firebaseOps.deleteDoc(window.firebaseOps.doc(window.db, type, id));
                 };
-
                 const autoCalculate = () => {
                     const p = formData.value.price;
                     const v = formData.value.volume;
@@ -413,21 +414,23 @@
                     const tax = Math.floor(p * v * 0.003);
                     formData.value.fee = fee;
                     formData.value.tax = tax;
-                    // 假設簡易獲利 (賣價-成本)，這裡只是輔助計算
-                    alert('已填入預估手續費與稅，請手動輸入實際淨損益');
+                    alert('已填入手續費與交易稅，請手動計算淨損益');
                 };
 
-                // 計算顯示
+                // Formatter & Colors
                 const formatCurrency = (v) => new Intl.NumberFormat('zh-TW', {style:'currency', currency:'TWD', minimumFractionDigits:0}).format(v||0);
                 const formatNumber = (v) => new Intl.NumberFormat('zh-TW').format(v||0);
                 const formatPercent = (v) => ((v||0) * 100).toFixed(2) + '%';
+                
+                // ★★★ 核心顏色邏輯：台股紅漲(up) 綠跌(down) ★★★
                 const getColorClass = (v) => v > 0 ? 'text-up' : (v < 0 ? 'text-down' : 'text-gray-400');
                 const getPriceColor = (s) => s.currentPrice > s.cost ? 'text-up' : (s.currentPrice < s.cost ? 'text-down' : 'text-white');
                 const getTypeBadge = (t) => {
                     const m = {'現股':'border-blue-800 text-blue-400', '融資':'border-orange-800 text-orange-400', '期貨':'border-red-800 text-red-400'};
                     return m[t] ? `bg-${m[t].split(' ')[0].replace('border-','')} ${m[t]}` : 'bg-gray-800 text-gray-300';
                 };
-                
+
+                // Computed
                 const calculateUnrealizedPL = (s) => (s.currentPrice * s.volume) - (s.cost * s.volume);
                 const calculateUnrealizedRate = (s) => s.cost ? (s.currentPrice - s.cost) / s.cost : 0;
                 

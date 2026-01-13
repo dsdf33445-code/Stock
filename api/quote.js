@@ -1,6 +1,4 @@
 // api/quote.js
-// 負責抓取股價與名稱，並強制使用繁體中文
-
 export default async function handler(req, res) {
   const { symbols } = req.query;
 
@@ -8,16 +6,18 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing symbols parameter' });
   }
 
-  // 1. 處理代號：加上 .TW (上市) 或 .TWO (上櫃)
-  // 這裡做一個簡單判斷：如果是 4 位數數字，預設先試上市 (.TW)
+  // 1. 處理代號：自動補上 .TW (針對上市股票的簡易判斷)
   const symbolList = symbols.split(',').map(s => {
     s = s.toUpperCase().trim();
-    if (!s.includes('.')) return `${s}.TW`; 
+    // 如果是純數字且長度為4 (如 2330)，加上 .TW
+    // 如果是上櫃股票 (如 8069)，Yahoo Finance 需要 .TWO，這裡暫時統一加 .TW 
+    // (建議使用者如果查不到，手動輸入 "8069.TWO")
+    if (!s.includes('.') && /^\d{4}$/.test(s)) return `${s}.TW`; 
     return s;
   });
 
   try {
-    // 2. 呼叫 Yahoo Finance API (加上 lang=zh-Hant-TW 強制繁體中文)
+    // 2. 呼叫 Yahoo Finance
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/quote?symbols=${symbolList.join(',')}&region=TW&lang=zh-Hant-TW`;
     
     const response = await fetch(yahooUrl, {
@@ -27,23 +27,27 @@ export default async function handler(req, res) {
     const data = await response.json();
     const result = {};
 
-    // 3. 解析資料，回傳 { price, name } 物件
+    // 3. 解析與格式化
     if (data.quoteResponse && data.quoteResponse.result) {
       data.quoteResponse.result.forEach(stock => {
-        // 移除 .TW/.TWO 以便前端對應
+        // 為了讓前端好對應，我們移除後綴 (.TW, .TWO) 當作 Key
         const code = stock.symbol.replace('.TW', '').replace('.TWO', '');
         
-        // 優先使用 longName (通常是全名)，沒有則用 shortName
+        // 優先使用 longName (全名) -> shortName -> code
         const name = stock.longName || stock.shortName || code;
         
         result[code] = {
             price: stock.regularMarketPrice,
             name: name
         };
+        // 同時保留原始 symbol 當 key，以防萬一
+        result[stock.symbol] = {
+            price: stock.regularMarketPrice,
+            name: name
+        };
       });
     }
 
-    // 設定快取 10 秒
     res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate');
     res.status(200).json(result);
 
