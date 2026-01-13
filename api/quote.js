@@ -1,6 +1,9 @@
 // api/quote.js
-// 使用 yahoo-finance2 套件，這是最穩定的 Node.js 抓股價方式
-const yahooFinance = require('yahoo-finance2').default;
+// 使用 CommonJS 語法，解決 Vercel 404 問題
+// 整合了: 抓股價 (quote) 與 讀取設定 (config) 的功能 (若是分開的檔案，請確認 config.js 也是用 module.exports)
+
+// 由於您有兩個 API 需求 (股價 & 設定)，建議保持分開。
+// 這裡是 quote.js 的修正版：
 
 module.exports = async (req, res) => {
   const { symbols } = req.query;
@@ -10,55 +13,44 @@ module.exports = async (req, res) => {
   }
 
   // 1. 處理代號
-  // yahoo-finance2 對台股代號的格式要求是 "2330.TW"
   const symbolList = symbols.split(',').map(s => {
     s = s.toUpperCase().trim();
-    // 如果是純數字 (如 2330)，補上 .TW
     if (!s.includes('.') && /^\d{4}$/.test(s)) return `${s}.TW`;
     return s;
   });
 
   try {
-    // 2. 使用套件抓取 (比 fetch 更穩定，會自動處理 Crumb)
-    // quoteCombine 可以一次抓多檔
-    const quotes = await yahooFinance.quote(symbolList, { 
-      fields: ['symbol', 'regularMarketPrice', 'longName', 'shortName'] 
+    // 2. 抓取 Yahoo Finance (偽裝瀏覽器)
+    const url = `https://query1.finance.yahoo.com/v8/finance/quote?symbols=${symbolList.join(',')}&region=TW&lang=zh-Hant-TW`;
+    
+    const response = await fetch(url, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
     });
 
+    if (!response.ok) throw new Error(`Yahoo API status: ${response.status}`);
+    
+    const data = await response.json();
     const result = {};
 
-    // 3. 格式化回傳資料
-    // yahooFinance.quote 若只查一檔會回傳物件，查多檔回傳陣列
-    const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+    // 3. 解析資料
+    if (data.quoteResponse && data.quoteResponse.result) {
+      data.quoteResponse.result.forEach(stock => {
+        const code = stock.symbol.replace('.TW', '').replace('.TWO', '');
+        const name = stock.longName || stock.shortName || code;
+        const stockData = { price: stock.regularMarketPrice, name: name };
+        
+        result[code] = stockData;
+        result[stock.symbol] = stockData;
+      });
+    }
 
-    quotesArray.forEach(stock => {
-      // 移除 .TW 以便前端對應 key
-      const rawCode = stock.symbol.replace('.TW', '').replace('.TWO', '');
-      
-      // 名稱優先順序
-      const name = stock.longName || stock.shortName || rawCode;
-
-      const stockData = {
-        price: stock.regularMarketPrice,
-        name: name
-      };
-
-      // 存入兩種 key (原始代號 & 純數字代號) 確保前端一定找得到
-      result[rawCode] = stockData;
-      result[stock.symbol] = stockData;
-    });
-
-    // 設定快取
     res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate');
     res.status(200).json(result);
 
   } catch (error) {
-    console.error("Yahoo Finance API Error:", error);
-    // 即使失敗，也要回傳 JSON 避免前端炸裂
-    res.status(500).json({ 
-      error: 'Failed to fetch data', 
-      details: error.message,
-      // 如果是找不到代號，通常 error.message 會包含 'Not Found'
-    });
+    console.error("API Error:", error);
+    res.status(500).json({ error: 'Fetch failed', details: error.message });
   }
 };
