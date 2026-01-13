@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALPHA TRADER Pro - Cloud Edition</title>
+    <title>ALPHA TRADER Pro - Debug Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     
@@ -14,23 +14,20 @@
 
         async function initApp() {
             try {
-                // 先嘗試從後端抓設定
+                // 嘗試讀取後端設定
                 const res = await fetch('/api/config');
-                if (!res.ok) throw new Error('API_CONFIG_FAIL');
+                if (!res.ok) throw new Error('API_FAIL');
                 const firebaseConfig = await res.json();
 
-                // 初始化
                 const app = initializeApp(firebaseConfig);
                 window.db = getFirestore(app);
                 window.firebaseOps = { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp };
-                
-                // 通知 Vue
                 window.dispatchEvent(new Event('firebase-ready'));
                 console.log("Firebase initialized");
             } catch (e) {
-                console.error("Init Error:", e);
-                // 為了避免卡死，如果是 API 失敗，您可以選擇在這裡放入備用的寫死 Config (選用)
-                alert("⚠️ 連線警示：無法讀取後端設定 (API 404)。\n請確認 Vercel 的 package.json 是否已修復。");
+                console.error(e);
+                // 發生錯誤時的備用方案 (讓您至少能看到介面)
+                alert("⚠️ API 連線失敗 (404)。\n建議：請嘗試刪除 Vercel 專案並重新 Import，以修復路徑問題。");
             }
         }
         initApp();
@@ -43,11 +40,7 @@
             theme: {
                 extend: {
                     fontFamily: { sans: ['Inter'], mono: ['JetBrains Mono'] },
-                    colors: {
-                        gray: { 850: '#1f2937', 900: '#111827', 950: '#0b0f19' },
-                        up: '#ef4444',   
-                        down: '#22c55e', 
-                    }
+                    colors: { gray: { 850: '#1f2937', 900: '#111827', 950: '#0b0f19' }, up: '#ef4444', down: '#22c55e' }
                 }
             }
         }
@@ -66,7 +59,7 @@
         <aside class="w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
             <div class="p-6 border-b border-gray-800">
                 <h1 class="text-xl font-bold tracking-wider text-blue-400">ALPHA TRADER</h1>
-                <p class="text-xs text-gray-500 mt-1">Cloud Sync Enabled</p>
+                <p class="text-xs text-gray-500 mt-1">Debug Mode On</p>
             </div>
             <nav class="flex-1 p-4 space-y-2">
                 <button v-for="tab in ['dashboard', 'holdings', 'history']" :key="tab"
@@ -282,7 +275,7 @@
                 const editingId = ref(null);
                 const formData = ref({});
 
-                // Firebase Sync
+                // Sync
                 const initFirebaseSync = () => {
                     const { onSnapshot, collection, query, orderBy } = window.firebaseOps;
                     if(!window.db) return;
@@ -290,7 +283,6 @@
                     onSnapshot(query(collection(window.db, "history"), orderBy("date", "desc")), (s) => history.value = s.docs.map(d => ({ id: d.id, ...d.data() })));
                 };
 
-                // 自動抓取名稱
                 const fetchStockName = async () => {
                     const code = formData.value.code;
                     if (!code || code.length < 3) return;
@@ -304,11 +296,10 @@
                             formData.value.name = stockData.name;
                             if (modalMode.value === 'add' && !formData.value.price) formData.value.price = stockData.price;
                         }
-                    } catch (e) { console.error("無法抓取名稱", e); }
+                    } catch (e) { console.error(e); }
                     fetchingName.value = false;
                 };
 
-                // 更新股價
                 const refreshPrices = async () => {
                     loadingPrices.value = true;
                     const symbols = [...new Set(holdings.value.map(h => h.code))];
@@ -324,18 +315,17 @@
                                 await updateDoc(doc(window.db, "holdings", stock.id), { currentPrice: stockData.price, name: stockData.name || stock.name });
                             }
                         }
-                    } catch (e) { alert("⚠️ 更新失敗：請先確認 package.json 錯誤已修正，並重新部署。"); }
+                    } catch (e) { alert("⚠️ 更新失敗：請檢查 API 部署狀態 (404/500)"); }
                     loadingPrices.value = false;
                 };
 
-                // ★★★ 核心修正：正規化輔助函式 (解決比對不到的問題) ★★★
+                // ★★★ 核心修正：正規化輔助函式 ★★★
                 const normalize = (str) => {
-                    if (!str) return '';
-                    // 轉字串 -> 去空白 -> 轉大寫 -> 移除 .TW/.TWO 後綴
+                    if (str === undefined || str === null) return '';
                     return String(str).trim().toUpperCase().replace('.TW', '').replace('.TWO', '');
                 };
 
-                // ★★★ 儲存邏輯 (合併修正版) ★★★
+                // ★★★ 儲存邏輯 (Debug 版) ★★★
                 const saveData = async () => {
                     const { addDoc, updateDoc, collection, doc } = window.firebaseOps;
                     const colName = modalType.value;
@@ -343,7 +333,7 @@
 
                     data.price = Number(data.price) || 0;
                     data.volume = Number(data.volume) || 0;
-                    // 統一儲存格式
+                    // 標準化存入
                     data.code = normalize(data.code);
                     if (!data.name) data.name = data.code;
 
@@ -353,18 +343,24 @@
                         delete data.price;
 
                         if (modalMode.value === 'add') {
-                            // ★ 使用新的 normalize 進行超級寬容比對 ★
-                            const inputCode = normalize(data.code);
-                            const inputType = normalize(data.type);
-
-                            const existing = holdings.value.find(h => {
+                            // --- DEBUG LOGIC START ---
+                            let debugMsg = `【比對報告】\n輸入資料: 代號=[${data.code}], 分類=[${data.type}]\n`;
+                            debugMsg += `目前庫存總數: ${holdings.value.length}\n----------------\n`;
+                            
+                            const existing = holdings.value.find((h, index) => {
                                 const dbCode = normalize(h.code);
-                                const dbType = normalize(h.type);
-                                return dbCode === inputCode && dbType === inputType;
+                                const dbType = normalize(h.type || '現股'); // 預設值防呆
+                                const match = (dbCode === data.code && dbType === data.type);
+                                
+                                // 只列出前 3 筆比較結果，避免視窗太長
+                                if(index < 3 || match) {
+                                    debugMsg += `比對 #${index+1}: DB代號=[${dbCode}], DB分類=[${dbType}] -> ${match ? '✅ 符合!' : '❌ 不符'}\n`;
+                                }
+                                return match;
                             });
+                            // --- DEBUG LOGIC END ---
 
                             if (existing) {
-                                // 執行合併
                                 const oldVol = Number(existing.volume);
                                 const newVol = Number(data.volume);
                                 const avgCost = ((Number(existing.cost) * oldVol) + (data.cost * newVol)) / (oldVol + newVol);
@@ -374,9 +370,10 @@
                                     cost: avgCost, 
                                     currentPrice: data.currentPrice 
                                 });
-                                alert(`✅ 合併成功！\n已將 ${newVol} 股併入現有持股。\n新平均成本: ${avgCost.toFixed(2)}`);
+                                alert(`${debugMsg}\n✅ 結論：找到重複，執行【合併】成功！`);
                             } else {
                                 await addDoc(collection(window.db, colName), data);
+                                alert(`${debugMsg}\nℹ️ 結論：沒找到重複，執行【新增】成功！\n(如果應該要合併，請檢查上方比對資訊，看看哪裡不一樣)`);
                             }
                         } else {
                             await updateDoc(doc(window.db, colName, editingId.value), data);
