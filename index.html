@@ -12,28 +12,26 @@
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } 
         from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // 初始化函式：先抓設定，再啟動
         async function initApp() {
             try {
-                // 1. 從後端抓取環境變數
+                // 1. 抓取環境變數
                 const res = await fetch('/api/config');
-                if (!res.ok) throw new Error('無法讀取設定，請檢查 Vercel 環境變數');
+                if (!res.ok) throw new Error('無法讀取設定');
                 const firebaseConfig = await res.json();
 
-                // 2. 初始化 Firebase
+                // 2. 初始化
                 const app = initializeApp(firebaseConfig);
                 window.db = getFirestore(app);
                 window.firebaseOps = { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp };
                 
-                // 3. 通知 Vue 可以開始運作了 (透過全域事件或變數)
+                // 3. 發送就緒訊號
                 window.dispatchEvent(new Event('firebase-ready'));
-                console.log("Firebase initialized successfully");
+                console.log("Firebase initialized");
             } catch (e) {
-                console.error("初始化失敗:", e);
-                alert("系統錯誤：無法讀取 Firebase 設定。\n請確認您已在 Vercel 設定 Environment Variables。");
+                console.error("Init Error:", e);
+                alert("系統提示：無法讀取環境變數，請確認 Vercel 設定或 api/config.js 是否正確。");
             }
         }
-        
         initApp();
     </script>
 
@@ -283,7 +281,7 @@
                 const editingId = ref(null);
                 const formData = ref({});
 
-                // Firestore Sync (等待 window.db 初始化)
+                // Firebase Sync
                 const initFirebaseSync = () => {
                     const { onSnapshot, collection, query, orderBy } = window.firebaseOps;
                     if(!window.db) return;
@@ -300,6 +298,7 @@
                         const res = await fetch(`/api/quote?symbols=${code}`);
                         const data = await res.json();
                         const key = code.toUpperCase();
+                        // 嘗試匹配
                         const stockData = data[key] || data[`${key}.TW`]; 
                         if (stockData && stockData.name) {
                             formData.value.name = stockData.name;
@@ -319,25 +318,29 @@
                         const data = await res.json();
                         const { updateDoc, doc } = window.firebaseOps;
                         for (const stock of holdings.value) {
-                            const key = stock.code.toUpperCase();
+                            const key = String(stock.code).toUpperCase();
                             const stockData = data[key] || data[`${key}.TW`]; 
                             if (stockData && stockData.price) {
                                 await updateDoc(doc(window.db, "holdings", stock.id), { currentPrice: stockData.price, name: stockData.name || stock.name });
                             }
                         }
-                    } catch (e) { alert("⚠️ 更新失敗"); }
+                    } catch (e) { alert("⚠️ 更新失敗，請檢查 API"); }
                     loadingPrices.value = false;
                 };
 
-                // ★★★ 核心：儲存邏輯 (合併均價) ★★★
+                // ★★★ 核心修正：儲存邏輯 (超級寬容比對模式) ★★★
                 const saveData = async () => {
                     const { addDoc, updateDoc, collection, doc } = window.firebaseOps;
                     const colName = modalType.value;
                     let data = { ...formData.value };
 
+                    // 1. 資料清洗
                     data.price = Number(data.price) || 0;
                     data.volume = Number(data.volume) || 0;
-                    data.code = (data.code || '').toUpperCase();
+                    // 強制轉大寫並移除空白，確保格式統一
+                    const normalizedInputCode = String(data.code || '').trim().toUpperCase();
+                    data.code = normalizedInputCode;
+
                     if (!data.name) data.name = data.code;
 
                     if (colName === 'holdings') {
@@ -346,20 +349,36 @@
                         delete data.price;
 
                         if (modalMode.value === 'add') {
-                            const existing = holdings.value.find(h => h.code === data.code && h.type === data.type);
+                            // ★★★ 比對邏輯：強制轉字串、去空白、轉大寫，再比對 ★★★
+                            const existing = holdings.value.find(h => {
+                                const dbCode = String(h.code || '').trim().toUpperCase();
+                                return dbCode === normalizedInputCode && h.type === data.type;
+                            });
+
                             if (existing) {
+                                // 執行合併
                                 const oldVol = Number(existing.volume);
                                 const newVol = Number(data.volume);
+                                // 加權平均成本
                                 const avgCost = ((Number(existing.cost) * oldVol) + (data.cost * newVol)) / (oldVol + newVol);
-                                await updateDoc(doc(window.db, colName, existing.id), { volume: oldVol + newVol, cost: avgCost, currentPrice: data.currentPrice });
+                                
+                                await updateDoc(doc(window.db, colName, existing.id), { 
+                                    volume: oldVol + newVol, 
+                                    cost: avgCost, 
+                                    currentPrice: data.currentPrice 
+                                });
+                                alert(`✅ 合併成功！\n已將 ${newVol} 股併入現有持股。\n新平均成本: ${avgCost.toFixed(2)}`);
                             } else {
+                                // 新增
                                 await addDoc(collection(window.db, colName), data);
+                                alert(`✅ 新增成功！\n已建立新持股: ${data.name}`);
                             }
                         } else {
+                            // 編輯模式
                             await updateDoc(doc(window.db, colName, editingId.value), data);
                         }
                     } else {
-                        // History
+                        // History 模式 (不合併)
                         data.fee = Number(data.fee)||0; data.tax = Number(data.tax)||0; data.netPL = Number(data.netPL)||0; data.roi = Number(data.roi)||0;
                         if (modalMode.value === 'add') await addDoc(collection(window.db, colName), data);
                         else await updateDoc(doc(window.db, colName, editingId.value), data);
@@ -390,9 +409,7 @@
                 const annualROI = computed(() => totalRealizedPL.value / 5000000);
 
                 onMounted(() => {
-                    // 監聽 Firebase Ready 事件
                     window.addEventListener('firebase-ready', () => { initFirebaseSync(); });
-                    // 如果已經 ready 了直接執行 (防 race condition)
                     if (window.db) initFirebaseSync();
                     setInterval(() => currentTime.value = new Date().toLocaleString('zh-TW', {hour12:false}), 1000);
                 });
