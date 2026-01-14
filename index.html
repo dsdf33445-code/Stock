@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALPHA TRADER Pro - Ultimate UI V6</title>
+    <title>ALPHA TRADER Pro - Fixed Layout</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     
@@ -43,22 +43,23 @@
         }
     </script>
     <style>
+        /* 捲軸美化 */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #111827; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
         .number-font { font-family: 'JetBrains Mono', monospace; }
         [v-cloak] { display: none; }
         
-        /* 側邊欄按鈕 */
         .nav-btn { @apply w-full text-left px-6 py-4 rounded-xl text-lg font-bold transition-all flex items-center mb-2 whitespace-nowrap; }
         
-        /* ★★★ 表格優化核心 CSS ★★★ */
-        /* 1. 標題強制置中，加大內距 */
-        th { @apply py-4 px-6 font-bold text-gray-400 uppercase tracking-wider text-center whitespace-nowrap bg-gray-900; }
-        /* 2. 內容加大內距，不換行，預設置中 */
-        td { @apply py-4 px-6 whitespace-nowrap text-center border-b border-gray-800 transition-colors; }
-        /* 3. 金額欄位專用 class (靠右對齊比較好讀，但標題還是置中) */
-        .td-money { @apply text-right; }
+        /* ★★★ 表格排版核心修正 ★★★ */
+        /* 強制不換行 (whitespace-nowrap) 防止擠壓 */
+        /* 強制置中 (text-center) */
+        th { @apply py-4 px-6 font-bold text-gray-400 uppercase tracking-wider text-center whitespace-nowrap bg-gray-900 border-b border-gray-700; }
+        td { @apply py-4 px-6 text-center whitespace-nowrap border-b border-gray-800 text-base; }
+        
+        /* 財務數字可選靠右 (目前依您需求全部置中，若想靠右可加此 class) */
+        .money-cell { @apply font-bold; } 
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 h-screen overflow-hidden flex flex-col font-sans">
@@ -162,7 +163,7 @@
                             <h3 class="text-lg font-bold text-white flex items-center"><span class="w-1 h-6 bg-blue-500 rounded-full mr-3"></span> 台股庫存概覽</h3>
                             <button @click="switchTab('holdings')" class="text-xs text-blue-400 hover:text-blue-300">前往台股 ></button>
                         </div>
-                        <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl overflow-x-auto">
+                        <div class="bg-gray-900 border border-gray-800 rounded-xl shadow-xl overflow-x-auto">
                             <table class="w-full text-sm">
                                 <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
                                     <tr><th>代號</th><th>名稱</th><th>現價</th><th>均價(成本)</th><th>損益</th><th>%</th></tr>
@@ -171,11 +172,12 @@
                                     <tr v-for="stock in sortedHoldings.slice(0, 5)" :key="stock.id" class="hover:bg-gray-800/50">
                                         <td class="font-bold">{{ stock.code }}</td>
                                         <td class="text-gray-300">{{ stock.name }}</td>
-                                        <td class="number-font td-money" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
-                                        <td class="number-font text-gray-500 td-money">{{ formatPrice(stock.cost) }}</td>
-                                        <td class="number-font td-money" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td>
-                                        <td class="number-font td-money" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
+                                        <td class="number-font" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
+                                        <td class="number-font text-gray-500">{{ formatPrice(stock.cost) }}</td>
+                                        <td class="number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td>
+                                        <td class="number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
                                     </tr>
+                                    <tr v-if="sortedHoldings.length === 0"><td colspan="6" class="py-8 text-gray-500">無庫存資料</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -186,7 +188,7 @@
                             <h3 class="text-lg font-bold text-white flex items-center"><span class="w-1 h-6 bg-blue-600 rounded-full mr-3"></span> 美股庫存概覽</h3>
                             <button @click="switchTab('us_stocks')" class="text-xs text-blue-400 hover:text-blue-300">前往美股 ></button>
                         </div>
-                        <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl overflow-x-auto">
+                        <div class="bg-gray-900 border border-gray-800 rounded-xl shadow-xl overflow-x-auto">
                             <table class="w-full text-sm">
                                 <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
                                     <tr><th>代號</th><th>名稱</th><th>現價(USD)</th><th>均價(成本)</th><th>損益(USD)</th><th>%</th></tr>
@@ -195,11 +197,12 @@
                                     <tr v-for="stock in usHoldings.slice(0, 5)" :key="stock.id" class="hover:bg-gray-800/50">
                                         <td class="font-bold text-blue-400">{{ stock.code }}</td>
                                         <td class="text-gray-300">{{ stock.name }}</td>
-                                        <td class="number-font td-money" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
-                                        <td class="number-font text-gray-500 td-money">{{ formatPrice(stock.cost) }}</td>
-                                        <td class="number-font td-money" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
-                                        <td class="number-font td-money" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
+                                        <td class="number-font" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
+                                        <td class="number-font text-gray-500">{{ formatPrice(stock.cost) }}</td>
+                                        <td class="number-font" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
+                                        <td class="number-font" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
                                     </tr>
+                                    <tr v-if="usHoldings.length === 0"><td colspan="6" class="py-8 text-gray-500">無庫存資料</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -219,7 +222,7 @@
                             <button @click="openModal('holdings')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm font-bold transition">+ 新增台股</button>
                         </div>
                     </div>
-                    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl overflow-x-auto">
+                    <div class="bg-gray-900 border border-gray-800 rounded-xl shadow-xl overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
                                 <tr><th>分類</th><th>名稱(代號)</th><th>均價</th><th>現價</th><th>股數</th><th>損益</th><th>%</th><th>操作</th></tr>
@@ -232,18 +235,18 @@
                                             <div class="font-bold text-white text-base">{{ stock.name }} <span class="text-gray-400 text-xs">({{ stock.code }})</span></div>
                                             <div v-if="expandedSet.has(stock.id)" class="text-[10px] text-blue-400 mt-1">▼ 明細</div>
                                         </td>
-                                        <td class="number-font text-gray-300 td-money">{{ formatPrice(stock.cost) }}</td>
-                                        <td class="number-font font-bold td-money" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
-                                        <td class="number-font td-money">{{ formatNumber(stock.volume) }}</td>
-                                        <td class="number-font font-bold td-money" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td>
-                                        <td class="number-font font-bold td-money" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
+                                        <td class="number-font text-gray-300">{{ formatPrice(stock.cost) }}</td>
+                                        <td class="number-font font-bold" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
+                                        <td class="number-font">{{ formatNumber(stock.volume) }}</td>
+                                        <td class="number-font money-cell" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatCurrency(calculateUnrealizedPL(stock)) }}</td>
+                                        <td class="number-font money-cell" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
                                         <td @click.stop>
                                             <button @click="openSellModal(stock)" class="bg-red-900/30 text-red-400 px-2 py-1 rounded text-xs mr-2 border border-red-900 hover:bg-red-900/50">賣出</button>
                                             <button @click="editItem('holdings', stock)" class="text-gray-500 hover:text-blue-400 mr-2 text-lg">✎</button>
                                             <button @click="confirmDelete('holdings', stock.id)" class="text-gray-500 hover:text-red-400 text-lg">✕</button>
                                         </td>
                                     </tr>
-                                    <tr v-if="expandedSet.has(stock.id)" class="bg-gray-900/50 border-b border-gray-800"><td colspan="8" class="p-4"><div class="bg-gray-800/30 p-2 rounded border border-gray-700/50"><table class="w-full text-xs text-gray-300"><thead><tr><th>日期</th><th>買價</th><th>股數</th><th>手續費</th><th>操作</th></tr></thead><tbody><tr v-for="(l,i) in stock.lots" :key="i"><td>{{l.date}}</td><td class="td-money">{{formatPrice(l.price)}}</td><td class="td-money">{{formatNumber(l.volume)}}</td><td class="td-money">{{l.fee}}</td><td><button @click="openEditLotModal(stock,i)" class="text-blue-400 mr-3">✎</button><button @click="deleteLot(stock,i)" class="text-red-400">✕</button></td></tr></tbody></table></div></td></tr>
+                                    <tr v-if="expandedSet.has(stock.id)" class="bg-gray-900/50 border-b border-gray-800"><td colspan="8" class="p-4"><div class="bg-gray-800/30 p-2 rounded border border-gray-700/50"><table class="w-full text-xs text-gray-300"><thead><tr><th>日期</th><th>買價</th><th>股數</th><th>手續費</th><th>操作</th></tr></thead><tbody><tr v-for="(l,i) in stock.lots" :key="i"><td>{{l.date}}</td><td>{{formatPrice(l.price)}}</td><td>{{formatNumber(l.volume)}}</td><td>{{l.fee}}</td><td><button @click="openEditLotModal(stock,i)" class="text-blue-400 mr-3">✎</button><button @click="deleteLot(stock,i)" class="text-red-400">✕</button></td></tr></tbody></table></div></td></tr>
                                 </template>
                             </tbody>
                         </table>
@@ -263,7 +266,7 @@
                             <button @click="openModal('us_stocks')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm font-bold transition">+ 新增美股</button>
                         </div>
                     </div>
-                    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl overflow-x-auto">
+                    <div class="bg-gray-900 border border-gray-800 rounded-xl shadow-xl overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
                                 <tr><th>代號</th><th>名稱</th><th>均價(USD)</th><th>現價(USD)</th><th>股數</th><th>損益(USD)</th><th>%</th><th>操作</th></tr>
@@ -273,18 +276,18 @@
                                     <tr @click="toggleExpand(stock.id)" class="hover:bg-gray-800/50 cursor-pointer group">
                                         <td class="font-bold text-blue-400">{{ stock.code }}</td>
                                         <td class="text-gray-300">{{ stock.name }}</td>
-                                        <td class="number-font text-gray-300 td-money">{{ formatPrice(stock.cost) }}</td>
-                                        <td class="number-font font-bold td-money" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
-                                        <td class="number-font td-money">{{ formatNumber(stock.volume) }}</td>
-                                        <td class="number-font font-bold td-money" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
-                                        <td class="number-font font-bold td-money" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
+                                        <td class="number-font text-gray-300">{{ formatPrice(stock.cost) }}</td>
+                                        <td class="number-font font-bold" :class="getPriceColor(stock)">{{ formatPrice(stock.currentPrice) }}</td>
+                                        <td class="number-font">{{ formatNumber(stock.volume) }}</td>
+                                        <td class="number-font money-cell" :class="getColorClass(calculateUnrealizedPL(stock))">$ {{ formatPrice(calculateUnrealizedPL(stock)) }}</td>
+                                        <td class="number-font money-cell" :class="getColorClass(calculateUnrealizedPL(stock))">{{ formatPercent(calculateUnrealizedRate(stock)) }}</td>
                                         <td @click.stop>
                                             <button @click="openSellModal(stock)" class="bg-red-900/30 text-red-400 px-2 py-1 rounded text-xs mr-2 border border-red-900">賣出</button>
                                             <button @click="editItem('us_stocks', stock)" class="text-gray-500 hover:text-blue-400 mr-2 text-lg">✎</button>
                                             <button @click="confirmDelete('us_stocks', stock.id)" class="text-gray-500 hover:text-red-400 text-lg">✕</button>
                                         </td>
                                     </tr>
-                                    <tr v-if="expandedSet.has(stock.id)" class="bg-gray-900/50 border-b border-gray-800"><td colspan="8" class="p-4"><div class="bg-gray-800/30 p-2"><table class="w-full text-xs text-gray-300"><thead><tr><th>日期</th><th>買價</th><th>股數</th><th>操作</th></tr></thead><tbody><tr v-for="(l,i) in stock.lots" :key="i"><td>{{l.date}}</td><td class="td-money">{{formatPrice(l.price)}}</td><td class="td-money">{{formatNumber(l.volume)}}</td><td><button @click="openEditLotModal(stock,i)" class="text-blue-400 mr-2">✎</button><button @click="deleteLot(stock,i)" class="text-red-400">✕</button></td></tr></tbody></table></div></td></tr>
+                                    <tr v-if="expandedSet.has(stock.id)" class="bg-gray-900/50 border-b border-gray-800"><td colspan="8" class="p-4"><div class="bg-gray-800/30 p-2"><table class="w-full text-xs text-gray-300"><thead><tr><th>日期</th><th>買價</th><th>股數</th><th>操作</th></tr></thead><tbody><tr v-for="(l,i) in stock.lots" :key="i"><td>{{l.date}}</td><td>{{formatPrice(l.price)}}</td><td>{{formatNumber(l.volume)}}</td><td><button @click="openEditLotModal(stock,i)" class="text-blue-400 mr-2">✎</button><button @click="deleteLot(stock,i)" class="text-red-400">✕</button></td></tr></tbody></table></div></td></tr>
                                 </template>
                             </tbody>
                         </table>
@@ -293,7 +296,7 @@
 
                 <div v-if="currentTab === 'gold'" class="mb-10">
                     <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-yellow-500">黃金庫存</h2><button @click="openModal('gold')" class="bg-yellow-600 text-black px-3 py-1.5 rounded text-sm font-bold">+ 新增黃金</button></div>
-                    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-800 text-gray-400 text-xs uppercase"><tr><th>日期</th><th>重量</th><th>成本</th><th>操作</th></tr></thead><tbody><tr v-for="g in goldList" :key="g.id"><td>{{g.date}}</td><td class="text-yellow-400 td-money">{{g.weight}}g</td><td class="td-money">{{formatNumber(g.cost)}}</td><td><button @click="confirmDelete('gold',g.id)" class="text-red-400">✕</button></td></tr></tbody></table></div>
+                    <div class="bg-gray-900 border border-gray-800 rounded-xl shadow-xl overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-800 text-gray-400 text-xs uppercase"><tr><th>日期</th><th>重量</th><th>成本</th><th>操作</th></tr></thead><tbody><tr v-for="g in goldList" :key="g.id"><td>{{g.date}}</td><td class="text-yellow-400">{{g.weight}}g</td><td>{{formatNumber(g.cost)}}</td><td><button @click="confirmDelete('gold',g.id)" class="text-red-400">✕</button></td></tr></tbody></table></div>
                 </div>
 
                 <div v-if="currentTab === 'history'" class="mb-10">
@@ -309,7 +312,7 @@
                     <div v-if="filteredHistory.length === 0" class="text-center text-gray-500 py-10">尚無交易紀錄</div>
 
                     <div class="space-y-6">
-                        <div v-for="(group, monthKey) in groupedHistory" :key="monthKey" class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl overflow-x-auto">
+                        <div v-for="(group, monthKey) in groupedHistory" :key="monthKey" class="bg-gray-900 border border-gray-800 rounded-xl shadow-xl overflow-x-auto">
                             <div class="bg-gray-800/80 px-6 py-3 flex justify-between items-center border-b border-gray-700">
                                 <h3 class="text-white font-bold text-lg">{{ monthKey }}</h3>
                                 <div><span class="text-gray-400 mr-2">單月損益:</span><span class="font-bold text-lg number-font" :class="getColorClass(group.monthTotal)">{{ historyFilter === 'us' ? '$ ' : '' }}{{ historyFilter === 'us' ? formatPrice(group.monthTotal) : formatCurrency(group.monthTotal) }}</span></div>
@@ -321,9 +324,9 @@
                                         <td class="number-font text-gray-400">{{ r.date }}</td>
                                         <td><span class="px-2 py-0.5 rounded text-xs border" :class="getTypeBadge(r.type)">{{ r.type }}</span></td>
                                         <td class="text-white font-bold">{{ r.name }} <span class="text-gray-500 font-normal">({{ r.code }})</span></td>
-                                        <td class="number-font td-money">{{ historyFilter === 'us' ? formatPrice(r.price) : formatNumber(r.price) }}</td>
-                                        <td class="number-font td-money">{{ formatNumber(r.volume) }}</td>
-                                        <td class="number-font font-bold td-money" :class="getColorClass(r.netPL)">{{ historyFilter === 'us' ? '$ ' : '' }}{{ historyFilter === 'us' ? formatPrice(r.netPL) : formatCurrency(r.netPL) }}</td>
+                                        <td class="number-font">{{ historyFilter === 'us' ? formatPrice(r.price) : formatNumber(r.price) }}</td>
+                                        <td class="number-font">{{ formatNumber(r.volume) }}</td>
+                                        <td class="number-font money-cell" :class="getColorClass(r.netPL)">{{ historyFilter === 'us' ? '$ ' : '' }}{{ historyFilter === 'us' ? formatPrice(r.netPL) : formatCurrency(r.netPL) }}</td>
                                         <td><button @click="confirmDelete('history', r.id)" class="text-gray-500 hover:text-red-400">✕</button></td>
                                     </tr>
                                 </tbody>
